@@ -11,7 +11,10 @@ module.exports = (app) => {
     app.get('/blockcount', (req, res) => {
         rpc.getBlockCount((err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === -5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -22,7 +25,10 @@ module.exports = (app) => {
         let hash = req.params.hash;
         rpc.getBlock(hash, (err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === -5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -33,7 +39,10 @@ module.exports = (app) => {
     app.get('/info', (req, res) => {
         rpc.getInfo((err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === -5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -45,7 +54,10 @@ module.exports = (app) => {
         let txid = req.params.txid;
         rpc.getTransaction(txid, (err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === -5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -64,7 +76,10 @@ module.exports = (app) => {
         let addr = req.params.addr;
         rpc.getReceivedByAddress(addr, (err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === 5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -75,7 +90,10 @@ module.exports = (app) => {
     app.get('/connectioncount', (req, res) => {
         rpc.getConnectionCount((err, response) => {
             if (err) {
-                console.log(err);
+                console.log(err)
+                if (err.code === -5) {
+                    res.json({'error': 'Invalid transaction'})
+                }
             } else {
                 res.json(response);
             };
@@ -86,7 +104,7 @@ module.exports = (app) => {
     // app.get('/blockheight', (req, res) => {
     //     rpc.getnetworkhashps((err, response) => {
     //         if (err) {
-    //             console.log(err);
+    //             throw new Error('Error')
     //         } else {
     //             res.json(response);
     //         };
