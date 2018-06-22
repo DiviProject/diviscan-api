@@ -22,7 +22,6 @@
   },
   "homepage": "https://github.com/99darwin/diviscan-api#readme",
   "dependencies": {
-    "bitcore-divi": "^4.1.4",
     "body-parser": "^1.18.3",
     "divid-rpc": "^3.0.86",
     "express": "^4.16.3",

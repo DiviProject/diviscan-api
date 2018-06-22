@@ -22,6 +22,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'src')));
 
 require('./src/routing/api')(app);
+require('./src/routing/wallet')(app);
+require('./src/routing/tx')(app);
 
 app.listen(port, () => {
     console.log(`App listening on port: ${port}`);

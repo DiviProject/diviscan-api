@@ -1,5 +1,4 @@
 const 
-    bitcore     = require('bitcore-divi'), 
     RpcClient   = require('divid-rpc'), 
     config      = require('../config');
 
@@ -68,21 +67,6 @@ module.exports = (app) => {
     app.get('/recent', (req, res) => {
         rpc.getChainTips((err, response) => {
             res.json(response);
-        });
-    });
-
-    // Get total amount received by address
-    app.get('/received/:addr', (req, res) => {
-        let addr = req.params.addr;
-        rpc.getReceivedByAddress(addr, (err, response) => {
-            if (err) {
-                console.log(err)
-                if (err.code === 5) {
-                    res.json({'error': 'Invalid transaction'})
-                }
-            } else {
-                res.json(response);
-            };
         });
     });
 
