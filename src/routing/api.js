@@ -51,7 +51,7 @@ module.exports = (app) => {
     // Check transaction details 
     app.get('/tx/:txid', (req, res) => {
         let txid = req.params.txid;
-        rpc.getTransaction(txid, (err, response) => {
+        rpc.getRawTransaction(txid, 1, (err, response) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
