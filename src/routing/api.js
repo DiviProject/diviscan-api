@@ -51,14 +51,20 @@ module.exports = (app) => {
     // Check transaction details 
     app.get('/tx/:txid', (req, res) => {
         let txid = req.params.txid;
-        rpc.getRawTransaction(txid, 1, (err, response) => {
+        rpc.getRawTransaction(txid, (err, response) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                res.json(response);
+                rpc.decodeRawTransaction(response.result, (err, response) => {
+                    if (err) {
+                        console.log(err)
+                    } else {
+                        res.json(response);
+                    }
+                })
             };
         });
     });
@@ -83,6 +89,20 @@ module.exports = (app) => {
             };
         });
     });
+
+    // Get masternode information
+    app.get('/masternodes', (req, res) => {
+        rpc.listMasternodes((err, response) => {
+            if (err) {
+                console.log(err)
+            } else {
+                res.json({
+                    'num_masternodes': response.result.length,
+                    'masternode_list': response.result
+                })
+            }
+        })
+    })
 
     /** TODO FUNCTIONS */
     // app.get('/blockheight', (req, res) => {
