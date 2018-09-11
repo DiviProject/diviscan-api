@@ -1,6 +1,7 @@
 const 
     RpcClient   = require('divid-rpc'), 
-    config      = require('../config');
+    config      = require('../config'),
+    _           = require('lodash')
 
 module.exports = (app) => {
     
@@ -99,6 +100,56 @@ module.exports = (app) => {
                 res.json({
                     'num_masternodes': response.result.length,
                     'masternode_list': response.result
+                })
+            }
+        })
+    })
+
+    // when the client calls the url get all information for the address in question
+    app.get('/address/:address', (req, res) => {
+        // create addresstxid object from params
+        let addressObj = {
+            "addresses": [req.params.address],
+            "start": 0,
+            "end": 10000000000000000000
+        }
+        // we will push the tx info into this array so we don't resend the headers, causing a network error
+        let transactionInfo = []
+        // set count so we can check if the loop has completed later on 
+        let count = 0
+        // call address txid rpc function
+        rpc.getAddressTxids(addressObj, (err, result) => {
+            if (err) { console.log('txid err:',err) }
+            else {
+                // set up an array to check against the count
+                let txidArray = []
+                // take each result from getaddresstxids 
+                result.result.forEach(txid => {
+                    // push the txids into the txid array from above
+                    txidArray.push(txid);
+                    // call getrawtransaction on each txid
+                    rpc.getRawTransaction(txid, (err, ret) => {
+                        if (err) {
+                            console.log('raw tx err:',err)
+                        } else {
+                            // decode each raw transaction
+                            rpc.decodeRawTransaction(ret.result, (err, response) => {
+                                if (err) {
+                                    console.log('decode raw err:',err)
+                                } else {
+                                    // push each transaction response into the transaction info array
+                                    transactionInfo.push(response)
+                                    // check if the count is equal to the length of the txid array minus one (because arrays start at 0)
+                                    if (count === txidArray.length - 1) {
+                                        // return the information to the client
+                                        res.json(transactionInfo)
+                                    }
+                                }
+                                // increment the count each time
+                                count++
+                            })
+                        }
+                    })
                 })
             }
         })
