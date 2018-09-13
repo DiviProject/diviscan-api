@@ -23,7 +23,7 @@
   "homepage": "https://github.com/99darwin/diviscan-api#readme",
   "dependencies": {
     "body-parser": "^1.18.3",
-    "divid-rpc": "^3.0.91",
+    "divid-rpc": "^3.0.92",
     "express": "^4.16.3",
     "lodash": "^4.17.10",
     "path": "^0.12.7",

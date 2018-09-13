@@ -108,10 +108,14 @@ module.exports = (app) => {
     // when the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
         // create addresstxid object from params
+        let reqAddress = req.params.address
         let addressObj = {
-            "addresses": [req.params.address],
+            "addresses": [reqAddress],
             "start": 0,
             "end": 10000000000000000000
+        }
+        let balanceObj = {
+            "addresses": [req.params.address]
         }
         // we will push the tx info into this array so we don't resend the headers, causing a network error
         let transactionInfo = []
@@ -141,8 +145,16 @@ module.exports = (app) => {
                                     transactionInfo.push(response)
                                     // check if the count is equal to the length of the txid array minus one (because arrays start at 0)
                                     if (count === txidArray.length - 1) {
+                                        rpc.getAddressBalance(balanceObj, (err, ret) => {
+                                            if (err) {
+                                                console.log(err)
+                                            } else {
+                                                res.json({
+                                                    transaction_info: transactionInfo, 
+                                                    balance_info: ret.result})
+                                            }
+                                        })
                                         // return the information to the client
-                                        res.json(transactionInfo)
                                     }
                                 }
                                 // increment the count each time
