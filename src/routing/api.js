@@ -150,10 +150,18 @@ module.exports = (app) => {
                                             if (err) {
                                                 console.log(err)
                                             } else {
-                                                // send the object to the client
-                                                res.json({
-                                                    transaction_info: transactionInfo, 
-                                                    balance_info: ret.result})
+                                                rpc.getAddressDeltas(balanceObj, (err, r) => {
+                                                    if (err) { console.log(err) }
+                                                    else {
+                                                        // send the object to the client
+                                                        res.json({
+                                                            transaction_info: transactionInfo, 
+                                                            balance_info: ret.result,
+                                                            deltas: r.result
+                                                        })
+                                                    }
+                                                })
+                                                
                                             }
                                         })
                                     }
