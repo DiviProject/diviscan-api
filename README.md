@@ -36,22 +36,26 @@ module.exports = {
 
 # Endpoints
 
-| Endpoint          | Params                    | Response                          |
-| --------          | ------                    | --------                          |
-| `/accountaddress` | `account`                 | address of account                |
-| `/addrsbyaccount` | `account`                 | all addresses of specified account|
-| `/balance`        | `account`                 | get balance of account            |
-| `/block/`         | `hash`                    | block object                      |
-| `/blockcount`     |                           | number of blocks                  |
-| `/connectioncount`|                           | number of active peers            |   
-| `/getaccount`     | `address`                 | account name                      |
-| `/info`           |                           | info object                       |
-| `/getreceived/`   | `address`                 | amount received                   |
-| `/listreceived`   |                           | wallet tx object                  |
-| `/newaddress/`    | `account name`            | new address                       |
-| `/recent`         |                           | most recent chain tips            |
-| `/tx/`            | `txid`                    | tx object                         |   
-| `/sendfrom/`      | `from`, `to`, `amount`    | transaction id                    |
+**GET Requests**
+
+| Endpoint          | Params                    | Response  
+| --------          | ------                    | --------                          	|
+| `/accountaddress` | `account`                 | address of account                	|
+| `/address/`		| `address`					| transaction, balance, and delta info	|
+| `/addrsbyaccount` | `account`                 | all addresses of specified account	|
+| `/balance`        | `account`                 | get balance of account            	|
+| `/block/`         | `hash`                    | block object                      	|
+| `/blockcount`     |                           | number of blocks                  	|
+| `/connectioncount`|                           | number of active peers            	|  	
+| `/getaccount`     | `address`                 | account name                      	|
+| `/getreceived/`   | `address`                 | amount received                   	|
+| `/info`           |                           | info object                       	|
+| `/listreceived`   |                           | wallet tx object                  	|
+| `/masternodes`	| 							| number of masternodes, masternode list|
+| `/newaddress/`    | `account name`            | new address                       	|
+| `/recent`         |                           | active and previous block information |
+| `/sendfrom/`      | `from`, `to`, `amount`    | transaction id   						|
+| `/tx/`            | `txid`                    | tx object                         	|
 
 
 # Todos
