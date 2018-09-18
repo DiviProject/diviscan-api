@@ -52,20 +52,13 @@ module.exports = (app) => {
     // Check transaction details 
     app.get('/tx/:txid', (req, res) => {
         let txid = req.params.txid;
-        rpc.getRawTransaction(txid, (err, response) => {
+        rpc.getRawTransaction(txid, 1, (err, response) => {
             if (err) {
-                console.log(err)
                 if (err.code === -5) {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                rpc.decodeRawTransaction(response.result, (err, response) => {
-                    if (err) {
-                        console.log(err)
-                    } else {
-                        res.json(response);
-                    }
-                })
+                res.json(response.result)
             };
         });
     });
@@ -73,7 +66,30 @@ module.exports = (app) => {
     // Get latest blocks
     app.get('/recent', (req, res) => {
         rpc.getChainTips((err, response) => {
-            res.json(response);
+            if (err) {
+                res.json({'error': err})
+            } else { 
+                response.result.forEach(hash => {
+                    if (hash.status === 'active') {
+                        rpc.getBlock(hash.hash, (err, ret) => {
+                            if (err) {
+                                res.json({'error': err})
+                            } else {
+                                rpc.getBlock(ret.result.previousblockhash, (err, resp) => {
+                                    if (err) {
+                                        res.json({'error': err})
+                                    } else {
+                                        res.json({
+                                            'active_block': ret.result,
+                                            'previous_block': resp.result
+                                        })
+                                    }
+                                })
+                            }
+                        })
+                    }
+                })
+            }
         });
     });
 
