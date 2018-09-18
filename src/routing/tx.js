@@ -1,9 +1,9 @@
 const 
  RpcClient   = require('divid-rpc'), 
- config      = require('../config');
+ config      = require('../config')
 
 module.exports = (app) => {
-    const rpc = new RpcClient(config.config);
+    const rpc = new RpcClient(config.config)
     /** TRANSACTIONAL APIS */
 
     // Send from account in wallet
@@ -11,7 +11,7 @@ module.exports = (app) => {
         let params      = req.params,
             fromAccount = params.from,
             toAccount   = params.to,
-            amount      = params.amount;
+            amount      = params.amount
         rpc.sendFrom(fromAccount, toAccount, amount, (err, response) => {
             if (err) {
                 console.log(err)
@@ -19,8 +19,8 @@ module.exports = (app) => {
                     res.json({'error': 'Account has insufficient funds'})
                 }
             } else {
-                res.json(response);
-            };
-        });
-    });
+                res.json(response)
+            }
+        })
+    })
 }

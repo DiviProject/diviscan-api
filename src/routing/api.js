@@ -5,7 +5,7 @@ const
 
 module.exports = (app) => {
     
-    const rpc = new RpcClient(config.config);
+    const rpc = new RpcClient(config.config)
 
     // Current block count
     app.get('/blockcount', (req, res) => {
@@ -16,13 +16,13 @@ module.exports = (app) => {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                res.json(response);
-            };
-        });
-    });
+                res.json(response)
+            }
+        })
+    })
 
     app.get('/block/:hash', (req, res) => {
-        let hash = req.params.hash;
+        let hash = req.params.hash
         rpc.getBlock(hash, (err, response) => {
             if (err) {
                 console.log(err)
@@ -30,10 +30,10 @@ module.exports = (app) => {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                res.json(response);
-            };
-        });
-    });
+                res.json(response)
+            }
+        })
+    })
 
     // Verbose info about the ecosystem
     app.get('/info', (req, res) => {
@@ -44,14 +44,14 @@ module.exports = (app) => {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                res.json(response);
-            };
-        });
-    });
+                res.json(response)
+            }
+        })
+    })
 
     // Check transaction details 
     app.get('/tx/:txid', (req, res) => {
-        let txid = req.params.txid;
+        let txid = req.params.txid
         rpc.getRawTransaction(txid, 1, (err, response) => {
             if (err) {
                 if (err.code === -5) {
@@ -59,9 +59,9 @@ module.exports = (app) => {
                 }
             } else {
                 res.json(response.result)
-            };
-        });
-    });
+            }
+        })
+    })
 
     // Get latest blocks
     app.get('/recent', (req, res) => {
@@ -90,8 +90,8 @@ module.exports = (app) => {
                     }
                 })
             }
-        });
-    });
+        })
+    })
 
     // Get total number of connected peers
     app.get('/connectioncount', (req, res) => {
@@ -102,10 +102,10 @@ module.exports = (app) => {
                     res.json({'error': 'Invalid transaction'})
                 }
             } else {
-                res.json(response);
-            };
-        });
-    });
+                res.json(response)
+            }
+        })
+    })
 
     // Get masternode information
     app.get('/masternodes', (req, res) => {
@@ -146,7 +146,7 @@ module.exports = (app) => {
                 // take each result from getaddresstxids 
                 result.result.forEach(txid => {
                     // push the txids into the txid array from above
-                    txidArray.push(txid);
+                    txidArray.push(txid)
                     // call getrawtransaction on each txid
                     rpc.getRawTransaction(txid, (err, ret) => {
                         if (err) {
@@ -191,16 +191,4 @@ module.exports = (app) => {
             }
         })
     })
-
-    /** TODO FUNCTIONS */
-    // app.get('/blockheight', (req, res) => {
-    //     rpc.getnetworkhashps((err, response) => {
-    //         if (err) {
-    //             throw new Error('Error')
-    //         } else {
-    //             res.json(response);
-    //         };
-    //     });
-    // });
-    
 }
