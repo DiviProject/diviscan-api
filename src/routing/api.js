@@ -191,4 +191,64 @@ module.exports = (app) => {
             }
         })
     })
+
+    // Last 10 blocks
+    app.get('/latest-blocks', (req, res) => {
+        let blockArray = []
+        let blockInfo = []
+        rpc.getBestBlockHash((err, ret) => {
+            if (err) {
+                res.json({'error': err})
+            } else {
+                rpc.getBlock(ret.result, (err, bestblock) => {
+                    if (err) {
+                        res.json({'error': err})
+                    } else {
+                        blockArray.push(bestblock.result.hash)
+                        rpc.getBlock(bestblock.result.previousblockhash, (err, blocktwo) => {
+                            if (err) {
+                                res.json({'error': err})
+                            } else {
+                                blockArray.push(blocktwo.result.hash)
+                                rpc.getBlock(blocktwo.result.previousblockhash, (err, blockthree) => {
+                                    if (err) {
+                                        res.json({'error': err})
+                                    } else {
+                                        blockArray.push(blockthree.result.hash)
+                                        rpc.getBlock(blockthree.result.previousblockhash, (err, blockfour) => {
+                                            if (err) {
+                                                res.json({'error': err})
+                                            } else {
+                                                blockArray.push(blockfour.result.hash)
+                                                rpc.getBlock(blockfour.result.previousblockhash, (err, blockfive) => {
+                                                    if (err) {
+                                                        res.json({'error': err})
+                                                    } else {
+                                                        blockArray.push(blockfive.result.hash)
+                                                        for (let i = 0; i < blockArray.length; i++) {
+                                                            rpc.getBlock(blockArray[i], (err, finalres) => {
+                                                                if (err) {
+                                                                    res.json({'error': err})
+                                                                } else {
+                                                                    blockInfo.push(finalres.result)
+                                                                    if (blockInfo.length === blockArray.length) {
+                                                                        res.json(blockInfo)
+                                                                    }
+                                                                }
+                                                            })
+                                                        }
+                                                        
+                                                    }
+                                                })
+                                            }
+                                        })
+                                    }
+                                })
+                            }
+                        })
+                    }
+                })
+            }
+        })
+    })
 }
