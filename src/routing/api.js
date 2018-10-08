@@ -154,28 +154,40 @@ module.exports = (app) => {
         })
     })
 
-    // TODO
-    // app.get('/masternode-rewards', (req, res) => {
-    //     rpc.listMasternodes((err, response) => {
-    //         if (err) {
-    //             console.log(err)
-    //         } else {
-    //             response.result.forEach(mn => {
-    //                 let balanceObj = {
-    //                     "addresses": [mn.addr]
-    //                 }
-    //                 rpc.getAddressBalance(balanceObj, (err, ret) => {
-    //                     if (err) {
-    //                         console.log(err)
-    //                     } else {
-    //                         let amountReceived = ret.result.received
-    //                         let layer = mn.tier
-    //                     }
-    //                 })
-    //             })
-    //         }
-    //     })
-    // })
+    app.get('/masternode-rewards', (req, res) => {
+        let rewardArr = []
+        let count = 0
+        rpc.listMasternodes((err, response) => {
+            if (err) {
+                console.log(err)
+            } else {
+                console.log(response.result.length)
+                response.result.forEach(mn => {
+                    let balanceObj = {
+                        "addresses": [mn.addr]
+                    }
+                    rpc.getAddressBalance(balanceObj, (err, ret) => {
+                        count++  
+                        if (err) {
+                            console.log(err)
+                        } else {
+                            let amountReceived = ret.result.received
+                            let layer = mn.tier
+                            rewardArr.push({
+                                amountReceived: amountReceived / 100000000,
+                                layer: layer
+                            })
+                            if (count == response.result.length) {
+                                res.json({
+                                    rewardArr
+                                })
+                            } 
+                        }
+                    })                                     
+                })
+            }
+        })
+    })
 
     // when the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
