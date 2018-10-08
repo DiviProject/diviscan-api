@@ -109,17 +109,73 @@ module.exports = (app) => {
 
     // Get masternode information
     app.get('/masternodes', (req, res) => {
+        let 
+            copper = 0,
+            silver = 0,
+            gold = 0,
+            platinum = 0,
+            diamond = 0
         rpc.listMasternodes((err, response) => {
             if (err) {
                 console.log(err)
             } else {
+                response.result.forEach(tier => {
+                    let layer = tier.tier
+                    switch (layer) {
+                        case 'COPPER':
+                            copper++
+                            break
+                        case 'SILVER':
+                            silver++
+                            break
+                        case 'GOLD':
+                            gold++
+                            break
+                        case 'PLATINUM':
+                            platinum++
+                            break
+                        case 'DIAMOND':
+                            diamond++
+                            break
+                    }
+                })
                 res.json({
                     'num_masternodes': response.result.length,
+                    'layers': {
+                        'copper': copper,
+                        'silver': silver,
+                        'gold': gold,
+                        'platinum': platinum,
+                        'diamond': diamond
+                    },
                     'masternode_list': response.result
                 })
             }
         })
     })
+
+    // TODO
+    // app.get('/masternode-rewards', (req, res) => {
+    //     rpc.listMasternodes((err, response) => {
+    //         if (err) {
+    //             console.log(err)
+    //         } else {
+    //             response.result.forEach(mn => {
+    //                 let balanceObj = {
+    //                     "addresses": [mn.addr]
+    //                 }
+    //                 rpc.getAddressBalance(balanceObj, (err, ret) => {
+    //                     if (err) {
+    //                         console.log(err)
+    //                     } else {
+    //                         let amountReceived = ret.result.received
+    //                         let layer = mn.tier
+    //                     }
+    //                 })
+    //             })
+    //         }
+    //     })
+    // })
 
     // when the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
