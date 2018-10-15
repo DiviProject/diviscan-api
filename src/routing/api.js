@@ -375,4 +375,15 @@ module.exports = (app) => {
             }
         })
     })
+
+    app.get('/decode-raw-tx/:hex', (req, res) => {
+        let hex = req.params.hex
+        rpc.decodeRawTransaction(hex, (err, response) => {
+            if (err) {
+                res.json(err)
+            } else {
+                res.json(response.result)
+            }
+        })
+    })
 }
