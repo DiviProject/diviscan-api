@@ -393,7 +393,7 @@ module.exports = (app) => {
         let account = req.params.account ? req.params.account : ''
         rpc.listTransactions(account, 10000000, (err, response) => {
             if (err) {
-                console.log(err)
+                console.log('list transactions error:',err)
             } else {
                 let list = response.result
                 let addresses = []
@@ -410,7 +410,7 @@ module.exports = (app) => {
                         }
                         rpc.getAddressBalance(newBalanceObj, (err, resp) => {
                             if (err) {
-                                console.log(err)
+                                console.log('get address balance error:',err)
                             } else {
                                 balanceArray.push({
                                     'address': uniqAddress,
