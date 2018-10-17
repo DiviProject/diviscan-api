@@ -386,4 +386,20 @@ module.exports = (app) => {
             }
         })
     })
+
+    app.get('/list-transactions/:account?', (req, res) => {
+        let account = req.params.account ? req.params.account : ''
+        rpc.listTransactions(account, 10000000, (err, response) => {
+            if (err) {
+                console.log(err)
+            } else {
+                let list = response.result
+                let transactionArray = []
+                list.forEach(transaction => {
+                    transactionArray.push(transaction)
+                })
+                res.json(transactionArray)
+            }
+        })
+    })
 }
