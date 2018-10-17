@@ -405,28 +405,27 @@ module.exports = (app) => {
                 if (count == addresses.length) {
                     let uniqAddresses = _.uniq(addresses)
                     uniqAddresses.forEach(uniqAddress => {
-                        let newBalanceObj = {
-                            "addresses": [uniqAddress]
-                        }
-                        rpc.getAddressBalance(newBalanceObj, (err, resp) => {
-                            if (err) {
-                                console.log('get address balance error:',err)
-                            } else {
-                                balanceArray.push({
-                                    'address': uniqAddress,
-                                    'balance': resp.result.balance / 100000000
-                                })
-                                step++
-                                if (step === uniqAddresses.length) {
-                                    res.json(balanceArray)
-                                }
+                        if (uniqAddress !== null) {
+                            let newBalanceObj = {
+                                "addresses": [uniqAddress]
                             }
-                        })
-                        
+                            rpc.getAddressBalance(newBalanceObj, (err, resp) => {
+                                if (err) {
+                                    console.log('get address balance error:',err)
+                                } else {
+                                    balanceArray.push({
+                                        'address': uniqAddress,
+                                        'balance': resp.result.balance / 100000000
+                                    })
+                                    step++
+                                    if (step === uniqAddresses.length) {
+                                        res.json(balanceArray)
+                                    }
+                                }
+                            })
+                        }
                     })
-                    
                 }
-                
             }
         })
     })
