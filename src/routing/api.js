@@ -388,17 +388,45 @@ module.exports = (app) => {
     })
 
     app.get('/list-transactions/:account?', (req, res) => {
+        let count = 0
+        let step = 0
         let account = req.params.account ? req.params.account : ''
         rpc.listTransactions(account, 10000000, (err, response) => {
             if (err) {
                 console.log(err)
             } else {
                 let list = response.result
-                let transactionArray = []
+                let addresses = []
+                let balanceArray = []
                 list.forEach(transaction => {
-                    transactionArray.push(transaction)
+                    addresses.push(transaction.address)
+                    count++
                 })
-                res.json(transactionArray)
+                if (count == addresses.length) {
+                    let uniqAddresses = _.uniq(addresses)
+                    uniqAddresses.forEach(uniqAddress => {
+                        let newBalanceObj = {
+                            "addresses": [uniqAddress]
+                        }
+                        rpc.getAddressBalance(newBalanceObj, (err, resp) => {
+                            if (err) {
+                                console.log(err)
+                            } else {
+                                balanceArray.push({
+                                    'address': uniqAddress,
+                                    'balance': resp.result.balance / 100000000
+                                })
+                                step++
+                                if (step === uniqAddresses.length) {
+                                    res.json(balanceArray)
+                                }
+                            }
+                        })
+                        
+                    })
+                    
+                }
+                
             }
         })
     })
