@@ -409,6 +409,7 @@ module.exports = (app) => {
                             let newBalanceObj = {
                                 "addresses": [uniqAddress]
                             }
+                            console.log(newBalanceObj.addresses)
                             rpc.getAddressBalance(newBalanceObj, (err, resp) => {
                                 if (err) {
                                     console.log('get address balance error:',err)
