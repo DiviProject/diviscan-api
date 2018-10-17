@@ -405,7 +405,7 @@ module.exports = (app) => {
                 if (count == addresses.length) {
                     let uniqAddresses = _.uniq(addresses)
                     uniqAddresses.forEach(uniqAddress => {
-                        if (uniqAddress !== [ undefined ]) {
+                        if (uniqAddress != undefined ) {
                             let newBalanceObj = {
                                 "addresses": [uniqAddress]
                             }
