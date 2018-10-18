@@ -418,7 +418,7 @@ module.exports = (app) => {
                                         'balance': resp.result.balance / 100000000
                                     })
                                     step++
-                                    if (step === uniqAddresses.length) {
+                                    if (step === uniqAddresses.length - 1) {
                                         res.json(balanceArray)
                                     }
                                 }
