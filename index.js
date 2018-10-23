@@ -25,6 +25,7 @@ require('./src/routing/api')(app)
 require('./src/routing/wallet')(app)
 require('./src/routing/tx')(app)
 
-app.listen(port, () => {
-    console.log(`App listening on port: ${port}`)
+const server = app.listen(port, () => {
+    console.log(`App listening on port: ${server.address().port}`)
 })
+server.timeout = 1000000

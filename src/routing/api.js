@@ -1,9 +1,23 @@
 const 
     RpcClient   = require('divid-rpc'), 
     config      = require('../config'),
-    _           = require('lodash')
+    _           = require('lodash'),
+    fetch       = require('node-fetch'),
+    PORT        = 1337
 
 module.exports = (app) => {
+
+    get = (url) => {
+        return new Promise((resolve, reject) => {
+            fetch(url)
+            .then(response => {
+                if (!response.ok) { throw response }
+                response.json()
+            })
+            .then(data => resolve(data))
+            .catch(err => reject(err))
+        }) 
+    }
     
     const rpc = new RpcClient(config.config)
 
@@ -17,6 +31,43 @@ module.exports = (app) => {
                 }
             } else {
                 res.json(response)
+            }
+        })
+    })
+
+    app.get('/best-block-addresses', (req, res) => {
+        let addressArray = []
+        let count = 0
+        rpc.getBestBlockHash((err, response) => {
+            if (err) {
+                console.log(err)
+            } else {
+                rpc.getBlock(response.result, (err, resp) => {
+                    if (err) {
+                        console.log(err)
+                    } else {
+                        let txid = resp.result.tx
+                        txid.forEach(tx => {
+                            rpc.getRawTransaction(tx, 1, (err, result) => {
+                                if (err) {
+                                    console.log(err)
+                                } else {
+                                    let vout = result.result.vout
+                                    vout.forEach(script => {
+                                        script.scriptPubKey.addresses ? addressArray.push(script.scriptPubKey.addresses) : null
+                                        count++
+                                        console.log('count',count)
+                                        console.log('vout length',vout.length)
+                                    })
+                                    if (count === vout.length + 1) {
+                                        res.json({addressArray})
+                                    }
+                                }
+                            })
+                        })
+                       
+                    }
+                })
             }
         })
     })
@@ -376,6 +427,155 @@ module.exports = (app) => {
         })
     })
 
+    app.get('/allblocks', (req, res) => {
+        let blockHash = 0
+        let transactionArray = []
+        let addressArray = []
+        let returnArray = []
+        let blockHeight = 36523
+        let count = 10001
+        let delay = 0
+
+        getCurrentBlock = () => {
+            rpc.getBlockCount((err, result) => {
+                if (err) {
+                    console.log('block count error:',err)
+                } else {
+                    console.log(result)
+                    blockHeight = result.result
+                }
+            })
+        }
+
+        getAllBlocks = () => {
+            console.log(`count: ${count} blockHeight: ${blockHeight}`)
+            batchCall = () => {
+                rpc.getBlockHash(count)
+            }
+            if (count < blockHeight) {
+                count++
+                console.log('allblocks should be called again')
+                rpc.batch(batchCall, (err, hashes) => {
+                    if (err) {
+                        console.error('get block hash error:',err)
+                    }
+                    blockHash = hashes
+                    console.log('getAllBlocks(): hashes:', blockHash)
+                    if (hashes) {
+                        getTransactionsByBlock()
+                    }
+                })
+            } else if (count === blockHeight) {
+                console.log('allblocks shouldnt be called here')
+                returnObject()
+            }
+        }
+        setTimeout(getAllBlocks, delay)
+
+        getTransactionsByBlock = () => {
+            if (blockHash) {
+                batchCall = () => {
+                    if (blockHash[0] !== undefined) {
+                        rpc.getBlock(blockHash[0].result)
+                    }
+                }
+                rpc.batch(batchCall, (err, txinfo) => {
+                    console.log('getTransactionsByBlock(): txinfo:', txinfo)
+                    if (err) {
+                        console.log('transaction block err:',err)
+                    } else if (txinfo !== undefined) {
+                        if (txinfo[0] !== undefined && txinfo[0].result !== null) {
+                            transactionArray = txinfo[0].result.tx
+                                console.log(`getTransactionsByBlock(): transactionArray: ${transactionArray} transactionArray.length: ${transactionArray.length}`)
+                                getAddressesFromTx()
+                        } 
+                    }
+                })
+            }
+            
+        }
+
+        getAddressesFromTx = () => {
+            let transactionId = 0
+            transactionArray.forEach(transaction => {
+                transactionId = transaction
+                console.log(`getAddressesFromTx(): transactionId: ${transactionId}`)
+            })
+            batchCall = () => {
+                rpc.getRawTransaction(transactionId, 1)
+            }
+            rpc.batch(batchCall, (err, transactionInfo) => {
+                console.log('getAddressesFromTx(): transactionInfo:',transactionInfo)
+                if (err) {
+                    console.log('raw tx error:',err)
+                }
+                if (transactionInfo !== undefined) {
+                    let txInfo = transactionInfo[0].result
+                    if (txInfo !== null && txInfo) {
+                        txInfo.vout.forEach(output => {
+                            if (output !== undefined) {
+                                if (output.scriptPubKey.type === 'pubkeyhash') {
+                                    let addressInfo = output.scriptPubKey.addresses
+                                    if (addressInfo !== undefined) {
+                                        addressInfo.forEach(address => {
+                                            addressArray = [address]
+                                            console.log('getAddressesFromTx(): addressInfo:', addressInfo)
+                                            console.log(`getAddressesFromTx(): addressArray.length: ${addressArray.length}`)
+                                            console.log('getAddressesFromTx(): addressArray:',addressArray)
+                                        })
+                                    }
+                                }
+                            }
+                        })
+                        getBalanceFromAddress()
+                    }
+                }
+            })
+        }
+
+        getBalanceFromAddress = () => {
+            console.log(`getBalanceFromAddress(): addressArray: ${addressArray}`)
+            let balanceObj = {
+                addresses: addressArray
+            }
+            console.log('getBalanceFromAddress(): balanceObj:',balanceObj)
+            batchCall = () => {
+                rpc.getAddressBalance(balanceObj)
+            }
+            rpc.batch(batchCall, (err, balance) => {
+                if (err) {
+                    console.log('address balance error:',err)
+                } else if (balance !== undefined && balance[0].result.balance > 0) {
+                    let resObject = 
+                    {
+                        'query_address': addressArray,
+                        'balance': balance[0].result
+                    }
+                    returnArray.push(resObject)
+                    console.log('balance > 0 resObject:',resObject)
+                    console.log(`returnArray.length ${returnArray.length} addressArray.length: ${addressArray.length}`)
+                    setTimeout(getAllBlocks, delay)
+                } else {
+                    console.log('balance:',balance)
+                    let resObject = 
+                    {
+                        'query_address': addressArray,
+                        'balance': balance[0].result
+                    }
+                    console.log('balance === 0 resObject:',resObject)
+                    returnArray.push(resObject)
+                    setTimeout(getAllBlocks, delay)
+                }
+            })
+        }
+
+        returnObject = () => {
+            if (count === blockHeight) {
+                res.json(returnArray)
+            }
+        }
+    })
+
     app.get('/decode-raw-tx/:hex', (req, res) => {
         let hex = req.params.hex
         rpc.decodeRawTransaction(hex, (err, response) => {
@@ -389,44 +589,93 @@ module.exports = (app) => {
 
     app.get('/list-transactions/:account?', (req, res) => {
         let count = 0
-        let step = 0
+        let addresses = []
         let account = req.params.account ? req.params.account : ''
         rpc.listTransactions(account, 10000000, (err, response) => {
             if (err) {
                 console.log('list transactions error:',err)
             } else {
                 let list = response.result
-                let addresses = []
-                let balanceArray = []
                 list.forEach(transaction => {
                     addresses.push(transaction.address)
+                    console.log(transaction)
                     count++
                 })
-                if (count == addresses.length) {
-                    let uniqAddresses = _.uniq(addresses)
-                    uniqAddresses.forEach(uniqAddress => {
-                        if (uniqAddress != undefined ) {
-                            let newBalanceObj = {
-                                "addresses": [uniqAddress]
-                            }
-                            rpc.getAddressBalance(newBalanceObj, (err, resp) => {
-                                if (err) {
-                                    console.log('get address balance error:',err)
-                                } else {
-                                    balanceArray.push({
-                                        'address': uniqAddress,
-                                        'balance': resp.result.balance / 100000000
-                                    })
-                                    step++
-                                    if (step === uniqAddresses.length - 1) {
-                                        res.json(balanceArray)
-                                    }
-                                }
-                            })
-                        }
+                if (count === addresses.length) {
+                    res.json({
+                        addresses
                     })
                 }
             }
         })
     })
+
+    app.get('/richlist', (req, res) => {
+        Promise.all([
+            get(`https://api.diviproject.org/list-transactions`),
+            get(`https://api.diviproject.org/info`)
+        ]).then(([{addresses}, {info}]) => {
+            res.json({
+                addresses,
+                info
+            })
+        }).catch(err => console.log(err))
+    })
+
+    app.get('/unique-balances', (req, res) => {
+        let uniqAddressArray = []
+        let balanceArray = []
+            for (let i = 0; i < addresses.length; i++) {
+                if (addresses[i] !== undefined) {
+                    uniqAddressArray.push(addresses[i])
+                }
+            }
+            let uniqAddresses = _.uniq(uniqAddressArray)
+            uniqAddresses.forEach(uniqAddress => {
+                let newBalanceObj = {
+                    "addresses": [uniqAddress]
+                }
+                rpc.getAddressBalance(newBalanceObj, (err, resp) => {
+                    step++
+                    if (err) {
+                        // console.log('get address balance error:',err)
+                    } else {
+                        balanceArray.push({
+                            'address': uniqAddress,
+                            'balance': resp.result.balance / 100000000
+                        })
+                    }
+                })
+            })
+            res.json(balanceArray)
+        })
 }
+
+/**
+ * getUniqueBalances = () => {
+ *      let uniqAddressArray = []
+        let balanceArray = []
+            for (let i = 0; i < addresses.length; i++) {
+                if (addresses[i] !== undefined) {
+                    uniqAddressArray.push(addresses[i])
+                }
+            }
+            let uniqAddresses = _.uniq(uniqAddressArray)
+            uniqAddresses.forEach(uniqAddress => {
+                let newBalanceObj = {
+                    "addresses": [uniqAddress]
+                }
+                rpc.getAddressBalance(newBalanceObj, (err, resp) => {
+                    step++
+                    if (err) {
+                        // console.log('get address balance error:',err)
+                    } else {
+                        balanceArray.push({
+                            'address': uniqAddress,
+                            'balance': resp.result.balance / 100000000
+                        })
+                    }
+                })
+            })
+        }
+ */
