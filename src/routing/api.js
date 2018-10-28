@@ -274,6 +274,8 @@ module.exports = (app) => {
 
     // when the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
+        let txidArray = []
+        let deltaArray = []
         // create addresstxid object from params
         let reqAddress = req.params.address
         let addressObj = {
@@ -286,116 +288,89 @@ module.exports = (app) => {
         }
         // we will push the tx info into this array so we don't resend the headers, causing a network error
         let transactionInfo = []
-        // set count so we can check if the loop has completed later on 
-        let count = 0
         // call address txid rpc function
-        rpc.getAddressTxids(addressObj, (err, result) => {
-            if (err) { console.log('txid err:',err) }
-            else {
-                // set up an array to check against the count
-                let txidArray = []
-                // take each result from getaddresstxids 
-                result.result.forEach(txid => {
-                    // push the txids into the txid array from above
-                    txidArray.push(txid)
-                    // call getrawtransaction on each txid
-                    rpc.getRawTransaction(txid, 1, (err, ret) => {
-                        if (err) {
-                            console.log('raw tx err:',err)
-                        } else {
-                            // push each transaction response into the transaction info array
-                            transactionInfo.push(ret)
-                            // check if the count is equal to the length of the txid array minus one (because arrays start at 0)
-                            if (count === txidArray.length - 1) {
-                                // Get address balance 
-                                rpc.getAddressBalance(balanceObj, (err, resp) => {
-                                    if (err) {
-                                        console.log(err)
-                                    } else {
-                                        rpc.getAddressDeltas(balanceObj, (err, r) => {
-                                            if (err) { console.log(err) }
-                                            else {
-                                                // send the object to the client
-                                                res.json({
-                                                    transaction_info: transactionInfo, 
-                                                    balance_info: resp.result,
-                                                    deltas: r.result
-                                                })
-                                                transactionInfo = []
-                                                txidArray = []
-                                            }
-                                        })
-                                        
-                                    }
-                                })
-                            }
-                        }
-                        // increment the count each time
-                        count++
-                    })
-                })
+        getAddressTransactionIds = () => {
+            batchCall = () => {
+                rpc.getAddressTxids(addressObj)
             }
-        })
+            rpc.batch(batchCall, (err, txs) => {
+                if (err) throw err
+                txidArray = txs[0].result
+                getAddressTransactions()
+            })
+            
+        }
+        getAddressTransactionIds()
+        
+        getAddressTransactions = () => {
+            transactionId = ''
+            batchCall = () => {
+                for (let tx in txidArray) {
+                    transactionId = txidArray[tx]
+                    rpc.getRawTransaction(transactionId, 1)
+                }
+            }
+            rpc.batch(batchCall, (err, result) => {
+                if (err) throw err
+                transactionInfo.push(result)
+                getDeltas()
+            })
+        }
+
+        getDeltas = () => {
+            batchCall = () => {
+                rpc.getAddressDeltas(balanceObj)
+            }
+            rpc.batch(batchCall, (err, deltas) => {
+                if (err) throw err
+                deltaArray = deltas[0].result
+            })
+            getBalance()
+        }
+
+        getBalance = () => {
+            batchCall = () => {
+                rpc.getAddressBalance(balanceObj)
+            }
+            rpc.batch(batchCall, (err, balance) => {
+                if (err) throw err
+                res.json({
+                    transaction_info: transactionInfo[0], 
+                    balance_info: balance,
+                    deltas: deltaArray
+                })
+            })
+        }
     })
 
     // Last 10 blocks
     app.get('/latest-blocks', (req, res) => {
-        let blockArray = []
         let blockInfo = []
-        rpc.getBestBlockHash((err, ret) => {
-            if (err) {
-                res.json({'error': err})
-            } else {
-                rpc.getBlock(ret.result, (err, bestblock) => {
-                    if (err) {
-                        res.json({'error': err})
-                    } else {
-                        blockArray.push(bestblock.result.hash)
-                        rpc.getBlock(bestblock.result.previousblockhash, (err, blocktwo) => {
-                            if (err) {
-                                res.json({'error': err})
-                            } else {
-                                blockArray.push(blocktwo.result.hash)
-                                rpc.getBlock(blocktwo.result.previousblockhash, (err, blockthree) => {
-                                    if (err) {
-                                        res.json({'error': err})
-                                    } else {
-                                        blockArray.push(blockthree.result.hash)
-                                        rpc.getBlock(blockthree.result.previousblockhash, (err, blockfour) => {
-                                            if (err) {
-                                                res.json({'error': err})
-                                            } else {
-                                                blockArray.push(blockfour.result.hash)
-                                                rpc.getBlock(blockfour.result.previousblockhash, (err, blockfive) => {
-                                                    if (err) {
-                                                        res.json({'error': err})
-                                                    } else {
-                                                        blockArray.push(blockfive.result.hash)
-                                                        for (let i = 0; i < blockArray.length; i++) {
-                                                            rpc.getBlock(blockArray[i], (err, finalres) => {
-                                                                if (err) {
-                                                                    res.json({'error': err})
-                                                                } else {
-                                                                    blockInfo.push(finalres.result)
-                                                                    if (blockInfo.length === blockArray.length) {
-                                                                        res.json(blockInfo)
-                                                                    }
-                                                                }
-                                                            })
-                                                        }
-                                                        
-                                                    }
-                                                })
-                                            }
-                                        })
-                                    }
-                                })
-                            }
-                        })
-                    }
-                })
+        getLatestBlock = () => {
+            batchCall = () => {
+                rpc.getBestBlockHash()
             }
-        })
+            rpc.batch(batchCall, (err, hash) => {
+                if (err) throw err
+                getBlockInfo(hash[0].result)
+            })
+        }
+        getLatestBlock()
+
+        getBlockInfo = (hash) => {
+            batchCall = () => {
+                rpc.getBlock(hash)
+            }
+            rpc.batch(batchCall, (err, info) => {
+                if (err) throw err
+                blockInfo = info
+                renderInfo()
+            })
+        }
+
+        renderInfo = () => {
+            res.json(blockInfo)
+        }
     })
 
     // Get address utxos
@@ -432,43 +407,48 @@ module.exports = (app) => {
         let transactionArray = []
         let addressArray = []
         let returnArray = []
-        let blockHeight = 36523
+        let blockHeight = 10001
         let count = 10001
         let delay = 0
-
         getCurrentBlock = () => {
             rpc.getBlockCount((err, result) => {
                 if (err) {
                     console.log('block count error:',err)
                 } else {
-                    console.log(result)
-                    blockHeight = result.result
+                    blockHeight.push(result.result)
                 }
             })
         }
-
+        
         getAllBlocks = () => {
-            console.log(`count: ${count} blockHeight: ${blockHeight}`)
-            batchCall = () => {
-                rpc.getBlockHash(count)
-            }
-            if (count < blockHeight) {
-                count++
-                console.log('allblocks should be called again')
-                rpc.batch(batchCall, (err, hashes) => {
-                    if (err) {
-                        console.error('get block hash error:',err)
+            // rpc.getBlockCount((err, result) => {
+                // if (err) {
+                //     console.log('block count error:',err)
+                // } else {
+                    // blockHeight = result.result
+                    console.log(`count: ${count} blockHeight: ${blockHeight}`)
+                    batchCall = () => {
+                        rpc.getBlockHash(count)
                     }
-                    blockHash = hashes
-                    console.log('getAllBlocks(): hashes:', blockHash)
-                    if (hashes) {
-                        getTransactionsByBlock()
+                    if (count < blockHeight) {
+                        count++
+                        console.log('allblocks should be called again')
+                        rpc.batch(batchCall, (err, hashes) => {
+                            if (err) {
+                                console.error('get block hash error:',err)
+                            }
+                            blockHash = hashes
+                            console.log('getAllBlocks(): hashes:', blockHash)
+                            if (hashes) {
+                                getTransactionsByBlock()
+                            }
+                        })
+                    } else if (count === blockHeight) {
+                        console.log('allblocks shouldnt be called here')
+                        returnObject()
                     }
-                })
-            } else if (count === blockHeight) {
-                console.log('allblocks shouldnt be called here')
-                returnObject()
-            }
+                // }
+            // })
         }
         setTimeout(getAllBlocks, delay)
 
@@ -486,8 +466,8 @@ module.exports = (app) => {
                     } else if (txinfo !== undefined) {
                         if (txinfo[0] !== undefined && txinfo[0].result !== null) {
                             transactionArray = txinfo[0].result.tx
-                                console.log(`getTransactionsByBlock(): transactionArray: ${transactionArray} transactionArray.length: ${transactionArray.length}`)
-                                getAddressesFromTx()
+                            console.log(`getTransactionsByBlock(): transactionArray: ${transactionArray} transactionArray.length: ${transactionArray.length}`)
+                            getAddressesFromTx()
                         } 
                     }
                 })
@@ -497,81 +477,83 @@ module.exports = (app) => {
 
         getAddressesFromTx = () => {
             let transactionId = 0
+            batchCall = () => {
+                rpc.getRawTransaction(transactionId, 1)
+            }
+            batchFunc = () => {
+                rpc.batch(batchCall, (err, transactionInfo) => {
+                    console.log('getAddressesFromTx(): transactionInfo:',transactionInfo)
+                    if (err) {
+                        console.log('raw tx error:',err)
+                    }
+                    if (transactionInfo !== undefined) {
+                        let txInfo = transactionInfo[0].result
+                        if (txInfo !== null && txInfo) {
+                            for (let i in txInfo.vout) {
+                                console.log('vout length',txInfo.vout.length)
+                                console.log('txInfo.vout[i]',txInfo.vout[i].scriptPubKey.addresses)
+                                let addressInfo = txInfo.vout[i].scriptPubKey.addresses
+                                addressArray.push(addressInfo)
+                                console.log('addressArray.length',addressArray.length)
+                                console.log('addressArray',addressArray)                                
+                                let voutType = txInfo.vout[i].scriptPubKey.type
+                                if (addressInfo !== undefined && voutType === 'pubkeyhash') {
+                                    console.log('defined addressInfo',addressInfo)
+                                    getBalanceFromAddress(addressInfo)
+                                }
+                            }
+                            setTimeout(getAllBlocks, delay)
+                        }
+                    }
+                })
+            }
             transactionArray.forEach(transaction => {
                 transactionId = transaction
                 console.log(`getAddressesFromTx(): transactionId: ${transactionId}`)
             })
-            batchCall = () => {
-                rpc.getRawTransaction(transactionId, 1)
-            }
-            rpc.batch(batchCall, (err, transactionInfo) => {
-                console.log('getAddressesFromTx(): transactionInfo:',transactionInfo)
-                if (err) {
-                    console.log('raw tx error:',err)
-                }
-                if (transactionInfo !== undefined) {
-                    let txInfo = transactionInfo[0].result
-                    if (txInfo !== null && txInfo) {
-                        txInfo.vout.forEach(output => {
-                            if (output !== undefined) {
-                                if (output.scriptPubKey.type === 'pubkeyhash') {
-                                    let addressInfo = output.scriptPubKey.addresses
-                                    if (addressInfo !== undefined) {
-                                        addressInfo.forEach(address => {
-                                            addressArray = [address]
-                                            console.log('getAddressesFromTx(): addressInfo:', addressInfo)
-                                            console.log(`getAddressesFromTx(): addressArray.length: ${addressArray.length}`)
-                                            console.log('getAddressesFromTx(): addressArray:',addressArray)
-                                        })
-                                    }
-                                }
-                            }
-                        })
-                        getBalanceFromAddress()
-                    }
-                }
-            })
+            batchFunc()
         }
 
-        getBalanceFromAddress = () => {
-            console.log(`getBalanceFromAddress(): addressArray: ${addressArray}`)
-            let balanceObj = {
-                addresses: addressArray
-            }
-            console.log('getBalanceFromAddress(): balanceObj:',balanceObj)
+        getBalanceFromAddress = (address) => {
+            addressArray = []
+            console.log('getBalanceFromAddress(): address:', address)
             batchCall = () => {
-                rpc.getAddressBalance(balanceObj)
+                rpc.getAddressBalance({addresses: address})
             }
-            rpc.batch(batchCall, (err, balance) => {
-                if (err) {
-                    console.log('address balance error:',err)
-                } else if (balance !== undefined && balance[0].result.balance > 0) {
-                    let resObject = 
-                    {
-                        'query_address': addressArray,
-                        'balance': balance[0].result
+            batchFunc = () => {
+                rpc.batch(batchCall, (err, balance) => {
+                    console.log('getBalanceFromAddress(): balance:',balance)
+                    if (err) {
+                        console.log('address balance error:',err)
+                    } else if (balance !== undefined && balance[0].result.balance > 0) {
+                        let resObject = 
+                        {
+                            'query_address': address,
+                            'balance': balance[0].result
+                        }
+                        returnArray.push(resObject)
+                        console.log('balance > 0 resObject:',resObject)
+                        console.log(`returnArray.length ${returnArray.length} addressArray.length: ${addressArray.length}`)
+                        // setTimeout(getAllBlocks, delay)
+                    } else {
+                        console.log('balance:',balance)
+                        let resObject = 
+                        {
+                            'query_address': address,
+                            'balance': balance[0].result
+                        }
+                        console.log('balance === 0 resObject:',resObject)
+                        returnArray.push(resObject)
+                        // setTimeout(getAllBlocks, delay)
                     }
-                    returnArray.push(resObject)
-                    console.log('balance > 0 resObject:',resObject)
-                    console.log(`returnArray.length ${returnArray.length} addressArray.length: ${addressArray.length}`)
-                    setTimeout(getAllBlocks, delay)
-                } else {
-                    console.log('balance:',balance)
-                    let resObject = 
-                    {
-                        'query_address': addressArray,
-                        'balance': balance[0].result
-                    }
-                    console.log('balance === 0 resObject:',resObject)
-                    returnArray.push(resObject)
-                    setTimeout(getAllBlocks, delay)
-                }
-            })
+                })
+            }
+            batchFunc()
         }
 
         returnObject = () => {
             if (count === blockHeight) {
-                res.json(returnArray)
+                res.json(_.uniqWith(returnArray, _.isEqual))
             }
         }
     })
