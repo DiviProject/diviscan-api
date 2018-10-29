@@ -6,69 +6,18 @@ const
     PORT        = 1337
 
 module.exports = (app) => {
-
-    get = (url) => {
-        return new Promise((resolve, reject) => {
-            fetch(url)
-            .then(response => {
-                if (!response.ok) { throw response }
-                response.json()
-            })
-            .then(data => resolve(data))
-            .catch(err => reject(err))
-        }) 
-    }
     
     const rpc = new RpcClient(config.config)
 
     // Current block count
     app.get('/blockcount', (req, res) => {
-        rpc.getBlockCount((err, response) => {
-            if (err) {
-                console.log(err)
-                if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
-                }
-            } else {
-                res.json(response)
-            }
-        })
-    })
 
-    app.get('/best-block-addresses', (req, res) => {
-        let addressArray = []
-        let count = 0
-        rpc.getBestBlockHash((err, response) => {
-            if (err) {
-                console.log(err)
-            } else {
-                rpc.getBlock(response.result, (err, resp) => {
-                    if (err) {
-                        console.log(err)
-                    } else {
-                        let txid = resp.result.tx
-                        txid.forEach(tx => {
-                            rpc.getRawTransaction(tx, 1, (err, result) => {
-                                if (err) {
-                                    console.log(err)
-                                } else {
-                                    let vout = result.result.vout
-                                    vout.forEach(script => {
-                                        script.scriptPubKey.addresses ? addressArray.push(script.scriptPubKey.addresses) : null
-                                        count++
-                                        console.log('count',count)
-                                        console.log('vout length',vout.length)
-                                    })
-                                    if (count === vout.length + 1) {
-                                        res.json({addressArray})
-                                    }
-                                }
-                            })
-                        })
-                       
-                    }
-                })
-            }
+        batchCall = () => {
+            rpc.getBlockCount()
+        }
+        rpc.batch(batchCall, (err, blocks) => {
+            if (err) throw err
+            res.json(blocks[0].result)
         })
     })
 
@@ -88,15 +37,12 @@ module.exports = (app) => {
 
     // Verbose info about the ecosystem
     app.get('/info', (req, res) => {
-        rpc.getInfo((err, response) => {
-            if (err) {
-                console.log(err)
-                if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
-                }
-            } else {
-                res.json(response)
-            }
+        batchCall = () => {
+            rpc.getInfo()
+        }
+        rpc.batch(batchCall, (err, info) => {
+            if (err) throw err
+            res.json(info)
         })
     })
 
@@ -167,67 +113,77 @@ module.exports = (app) => {
             platinum = 0,
             diamond = 0
         let rewardArr = []
-        let count = 0
-        rpc.listMasternodes((err, response) => {
-            if (err) {
-                console.log(err)
-            } else {
-                response.result.forEach(tier => {
-                    let layer = tier.tier
-                    switch (layer) {
-                        case 'COPPER':
-                            copper++
-                            break
-                        case 'SILVER':
-                            silver++
-                            break
-                        case 'GOLD':
-                            gold++
-                            break
-                        case 'PLATINUM':
-                            platinum++
-                            break
-                        case 'DIAMOND':
-                            diamond++
-                            break
-                    }
-                    let balanceObj = {
-                        "addresses": [tier.addr]
-                    }
-                    rpc.getAddressBalance(balanceObj, (err, ret) => {
-                        count++  
-                        if (err) {
-                            console.log(err)
-                        } else {
-                            let amountReceived = ret.result.received
-                            let layer = tier.tier
-                            let address = tier.addr
-                            rewardArr.push({
-                                address: address,
-                                amountReceived: amountReceived / 100000000,
-                                layer: layer
-                            })
-                            if (count === response.result.length) {
-                                let uniqRewards = _.uniq(rewardArr)
-                                res.json({
-                                    'num_masternodes': response.result.length,
-                                    'layers': {
-                                        'copper': copper,
-                                        'silver': silver,
-                                        'gold': gold,
-                                        'platinum': platinum,
-                                        'diamond': diamond
-                                    },
-                                    uniqRewards,
-                                    'masternode_list': response.result,
-                                })
-                            } 
-                        }
-                    }) 
-                })
-                
+        let masternodeArray = []
+
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+        getMasternodes = () => {
+            rpc.batch(batchCall, (err, mns) => {
+                if (err) throw err
+                masternodeArray = mns[0].result
+                getTierFigures()
+            })
+        }
+        getMasternodes()
+        getTierFigures = () => {
+            masternodeArray.map(tiers => {
+                let layer = tiers.tier
+                switch (layer) {
+                    case 'COPPER':
+                        copper++
+                        break
+                    case 'SILVER':
+                        silver++
+                        break
+                    case 'GOLD':
+                        gold++
+                        break
+                    case 'PLATINUM':
+                        platinum++
+                        break
+                    case 'DIAMOND':
+                        diamond++
+                        break
+                }
+            })
+            getNodeBalances()
+        }
+        getNodeBalances = () => {
+            batchCall = () => {
+                for (let a in masternodeArray) {
+                    rpc.getAddressBalance({"addresses": [masternodeArray[a].addr]})
+                }
             }
-        })
+            rpc.batch(batchCall, (err, balanceInfo) => {
+                if (err) throw err
+                for (let a in masternodeArray) {
+                    rewardArr.push({
+                        address: masternodeArray[a].addr,
+                        amountReceived: balanceInfo[0].result.received,
+                        balance: balanceInfo[0].result.balance,
+                        layer: masternodeArray[a].tier
+                    })
+                }
+                renderData()
+            })
+        }
+
+        renderData = () => {
+            let uniqRewards = _.uniq(rewardArr)
+            res.json({
+                num_masternodes: masternodeArray.length,
+                'layers': {
+                    'copper': copper,
+                    'silver': silver,
+                    'gold': gold,
+                    'platinum': platinum,
+                    'diamond': diamond
+                },
+                uniqRewards,
+                masternode_list: masternodeArray
+            })
+        }
     })
 
     app.get('/masternode-rewards', (req, res) => {
@@ -343,7 +299,6 @@ module.exports = (app) => {
         }
     })
 
-    // Last 10 blocks
     app.get('/latest-blocks', (req, res) => {
         let blockInfo = []
         getLatestBlock = () => {
