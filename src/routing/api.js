@@ -21,6 +21,7 @@ module.exports = (app) => {
         })
     })
 
+    // Information about a specific block
     app.get('/block/:hash', (req, res) => {
         let hash = req.params.hash
         rpc.getBlock(hash, (err, response) => {
@@ -179,6 +180,7 @@ module.exports = (app) => {
         })
     })
 
+    // Return only rewards by masternodes
     app.get('/masternode-rewards', (req, res) => {
         let rewardArr = []
         let count = 0
@@ -186,7 +188,6 @@ module.exports = (app) => {
             if (err) {
                 console.log(err)
             } else {
-                console.log(`response length ${response.result.length}`)
                 response.result.forEach(mn => {
                     let balanceObj = {
                         "addresses": [mn.addr]
@@ -205,8 +206,6 @@ module.exports = (app) => {
                                 layer: layer
                             })
                             if (count == response.result.length) {
-                                console.log(`rewardArr length ${rewardArr.length}`)
-                                console.log(_.uniq(rewardArr))
                                 let uniqRewards = _.uniq(rewardArr)
                                 res.json({
                                     uniqRewards
@@ -288,6 +287,7 @@ module.exports = (app) => {
     })
 
     // Last 10 blocks
+    // TODO: Make this way cleaner
     app.get('/latest-blocks', (req, res) => {
         let blockArray = []
         let blockInfo = []
@@ -359,6 +359,7 @@ module.exports = (app) => {
         })
     })
 
+    // Get block information based on index (i.e. 10020)
     app.get('/blockheight/:index', (req, res) => {
         let blockHeight = req.params.index
         rpc.getBlockHash(blockHeight, (err, response) => {
@@ -376,6 +377,7 @@ module.exports = (app) => {
         })
     })
 
+    // Decode raw transaction
     app.get('/decode-raw-tx/:hex', (req, res) => {
         let hex = req.params.hex
         rpc.decodeRawTransaction(hex, (err, response) => {
@@ -387,7 +389,8 @@ module.exports = (app) => {
         })
     })
 
-    app.get('/list-transactions/:account?', (req, res) => {
+    // Get account details based on account name
+    app.get('/account-details/:account?', (req, res) => {
         let count = 0
         let step = 0
         let account = req.params.account ? req.params.account : ''
