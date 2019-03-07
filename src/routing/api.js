@@ -64,36 +64,6 @@ module.exports = (app) => {
         })
     })
 
-    // Get latest blocks
-    app.get('/recent', (req, res) => {
-        rpc.getChainTips((err, response) => {
-            if (err) {
-                res.json({'error': err})
-            } else { 
-                response.result.forEach(hash => {
-                    if (hash.status === 'active') {
-                        rpc.getBlock(hash.hash, (err, ret) => {
-                            if (err) {
-                                res.json({'error': err})
-                            } else {
-                                rpc.getBlock(ret.result.previousblockhash, (err, resp) => {
-                                    if (err) {
-                                        res.json({'error': err})
-                                    } else {
-                                        res.json({
-                                            'active_block': ret.result,
-                                            'previous_block': resp.result
-                                        })
-                                    }
-                                })
-                            }
-                        })
-                    }
-                })
-            }
-        })
-    })
-
     // Get total number of connected peers
     app.get('/connectioncount', (req, res) => {
         rpc.getConnectionCount((err, response) => {
@@ -110,29 +80,45 @@ module.exports = (app) => {
 
     // Get masternode information
     app.get('/masternodes', (req, res) => {
+        // Start all tiers at 0
         let 
-            copper = 0,
-            silver = 0,
-            gold = 0,
-            platinum = 0,
-            diamond = 0
-        let rewardArr = []
+            copper          = 0,
+            silver          = 0,
+            gold            = 0,
+            platinum        = 0,
+            diamond         = 0
+        // We will have two arrays for storing rewards and masternode info
+        let rewardArr       = []
         let masternodeArray = []
 
         batchCall = () => {
             rpc.listMasternodes()
         }
+        /** Gets the initial data about masternodes using a batchCall to optimize request speed
+         * @function
+         */
         getMasternodes = () => {
+            // The batch function takes a callback function  that returns an error and masternode info
             rpc.batch(batchCall, (err, mns) => {
                 if (err) throw err
+                // Set masternodeArray equal to the result at the 0th index
                 masternodeArray = mns[0].result
+                // Call getTierFigures to determine how many nodes of each type exist in the network
                 getTierFigures()
             })
         }
         getMasternodes()
+
+        /** Get's the number of nodes of each type that exist in the network
+         * @function
+         */
         getTierFigures = () => {
+            // Loop over the masternodeArray, mapping each tier
             masternodeArray.map(tiers => {
+                // to a variable layer
                 let layer = tiers.tier
+                // Using a switch/case statement, we can easily iterate and set each node layer's equivalent value
+                // If the layer matches, increment the number of nodes of that type by 1
                 switch (layer) {
                     case 'COPPER':
                         copper++
@@ -151,41 +137,57 @@ module.exports = (app) => {
                         break
                 }
             })
+            // Once all the tiers have been numbered, call getNodeBalances to find further info about each node
             getNodeBalances()
         }
+
+        /** Get's balances for each node individually based on their address 
+         * @function
+         */
         getNodeBalances = () => {
             batchCall = () => {
+                // For every masternode we will find the address and
                 for (let a in masternodeArray) {
+                    // call the getAddressBalance rpc function for each of the addresses
                     rpc.getAddressBalance({"addresses": [masternodeArray[a].addr]})
                 }
             }
+            // Once the batch is created, call the function and use the callback function to return the data
             rpc.batch(batchCall, (err, balanceInfo) => {
                 if (err) throw err
+                // Once again, for every masternode in the array
                 for (let a in masternodeArray) {
+                    // We will push the object containing relevant data to the rewardArr array
                     rewardArr.push({
-                        address: masternodeArray[a].addr,
-                        amountReceived: balanceInfo[0].result.received,
-                        balance: balanceInfo[0].result.balance,
-                        layer: masternodeArray[a].tier
+                        address         : masternodeArray[a].addr,
+                        amountReceived  : balanceInfo[0].result.received,
+                        balance         : balanceInfo[0].result.balance,
+                        layer           : masternodeArray[a].tier
                     })
                 }
+                // Once all the data has been pushed to the array, we can render the JSON to the client
                 renderData()
             })
         }
 
+        /** Renders the collective data to the client in JSON format
+         * @function
+         */
         renderData = () => {
+            // First weed out any duplicates and redefine the array of rewards as uniqRewards
             let uniqRewards = _.uniq(rewardArr)
+            // Then return the JSON to the client
             res.json({
                 num_masternodes: masternodeArray.length,
                 'layers': {
-                    'copper': copper,
-                    'silver': silver,
-                    'gold': gold,
-                    'platinum': platinum,
-                    'diamond': diamond
+                    'copper'    : copper,
+                    'silver'    : silver,
+                    'gold'      : gold,
+                    'platinum'  : platinum,
+                    'diamond'   : diamond
                 },
                 uniqRewards,
-                masternode_list: masternodeArray
+                masternode_list : masternodeArray
             })
         }
     })
@@ -230,59 +232,82 @@ module.exports = (app) => {
         })
     })
 
-    // when the client calls the url get all information for the address in question
+    // When the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
+        // The txidArray will be used to store all of the transaction IDs
         let txidArray       = []
-        // we will push the tx info into this array so we don't resend the headers, causing a network error
+        // We will push the tx info into this array so we don't resend the headers, causing a network error
         let transactionInfo = []
-        // create addresstxid object from params
         let reqAddress      = req.params.address
         let addressObj      = {
-            "addresses":    [reqAddress],
-            "start":        0,
-            "end":          10000000000000000000
+            "addresses"     : [reqAddress],
+            "start"         : 0,
+            "end"           : 10000000000000000000
         }
         let balanceObj      = {
-            "addresses":    [reqAddress]
+            "addresses"     : [reqAddress]
         }
         
-        // call address txid rpc function
+        /** Gets all the transaction IDs from a specified address 
+         * @function
+         */
         getAddressTransactionIds = () => {
             batchCall = () => {
+                // Call address txid rpc function
                 rpc.getAddressTxids(addressObj)
             }
+            // Using the batch function's callback method
             rpc.batch(batchCall, (err, txs) => {
                 if (err) throw err
+                // Redefine txidArray as an array of transactions
                 txidArray = txs[0].result
+                // Call getAddressTransactions to get raw transaction data from txids
                 getAddressTransactions()
             })
         }
         getAddressTransactionIds()
         
+        /** Get's transaction info from raw transaction data
+         * @function
+         */
         getAddressTransactions = () => {
+            // Set transactionId to a blank array to begin
             transactionId = ''
             batchCall = () => {
+                // For all the transactions in txidArray
                 for (let tx in txidArray) {
+                    // set transactionId to the txid at the index of the transaction
                     transactionId = txidArray[tx]
+                    // then call the getRawTransaction rpc function on the txid with 1 as the second argument, 
+                    // so that verbose JSON data is returned
                     rpc.getRawTransaction(transactionId, 1)
                 }
             }
+            // Using the batch's callback method
             rpc.batch(batchCall, (err, result) => {
                 if (err) throw err
+                // we can push the resulting data into the transactionInfo array
                 transactionInfo.push(result)
+                // Call getBalance so we can also return balance information to the client
                 getBalance()
             })
         }
-
+        
+        /** Get's the balance of the requested address
+         * @function
+         */
         getBalance = () => {
             batchCall = () => {
+                // Call the getAddressBalance rpc method on the balanceObj defined above
                 rpc.getAddressBalance(balanceObj)
             }
+            // Using the batch's callback method
             rpc.batch(batchCall, (err, balance) => {
                 if (err) throw err
+                // We can simply return all of the collective data
                 res.json({
-                    transaction_info: transactionInfo[0], 
-                    balance_info: balance[0]
+                    transaction_info    : transactionInfo[0], 
+                    balance_info        : balance[0]
                 })
             })
         }

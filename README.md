@@ -2,15 +2,33 @@
 
 A RESTful API for making RPC calls to the Divi blockchain. Used for the diviscan block explorer.
 
+# Motivation
+
+The Divi Project ecosystem is a robust network of technologies. Interfacing directly with the blockchain can be challenging and inaccessible for even seasoned developers. Although libraries like [divid-rpc](https://github.com/Divicoin/divid-rpc) exist for interfacing with the blockchain via Javascript, there are few other programmatic ways to develop with Divi.
+
+Other limitations, such as package dependencies may limit developers from exercising the full feature set offered by `divid-rpc`. 
+
+Furthermore, the `divid-rpc` library still requires the developer to parse the results into usable data after creating methods that function as a developer or user intends.
+
+For this reason, this library of server-side API endpoints was created to allow any request framework to make calls to the public blockchain with ease. Results are easily consumable and provide enough data for a variety of applications to be created. 
+
 # Usage
 
 All endpoints can be retrieved by accessing 'https://api.diviscan.io' or you can host your own using this library.
+
+These endpoints will remain publicly accessible as long as they are not abused. If they are spammed or used for malicious purposes, custom hosting will be required for usage.
+
+# Technologies used
+
+* NodeJS
+* ExpressJS
+* NPM
 
 # Custom hosting
 
 1. Fork this repository and `npm install` all dependencies.
 
-2. Download the [Divi blockchain](https://github.com/divicoin/divi) for your operating system
+2. Download the [Divi blockchain](https://github.com/Divicoin/Divi/releases/tag/1.0.3-CLI) for your operating system or feel free to [compile from source](https://github.com/divicoin/divi)
 
 3. You will need a full Divi node running on the server where these APIs are hosted in order for the configuration to speak to the daemon.
 
@@ -66,7 +84,15 @@ Node specific endpoints will only return data based on the node where the API is
 | `/listreceived`       |                           | wallet tx object                  	            | true              |
 | `/masternodes`	    | 							| number of masternodes, masternode list            | false             |
 | `/newaddress/`        | `account name`            | new address                       	            | true              |
-| `/recent`             |                           | active and previous block information             | false             |
 | `/sendfrom/`          | `from`, `to`, `amount`    | transaction id   						            | true              |
 | `/tx/`                | `txid`                    | tx object                         	            | false             |
 
+
+# Use cases
+
+If you'd like your app listed here, just reach out to info@diviproject.org with the subject line: Diviscan API Application
+
+This API is currently being used by:
+
+* [Diviscan](https://diviscan.io)
+* 
