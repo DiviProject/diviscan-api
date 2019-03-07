@@ -288,65 +288,95 @@ module.exports = (app) => {
         }
     })
 
-    // Last 10 blocks
-    // TODO: Make this way cleaner
+    // Get the last 10 blocks minted
     app.get('/latest-blocks', (req, res) => {
-        let blockArray = []
-        let blockInfo = []
-        rpc.getBestBlockHash((err, ret) => {
-            if (err) {
-                res.json({'error': err})
-            } else {
-                rpc.getBlock(ret.result, (err, bestblock) => {
-                    if (err) {
-                        res.json({'error': err})
-                    } else {
-                        blockArray.push(bestblock.result.hash)
-                        rpc.getBlock(bestblock.result.previousblockhash, (err, blocktwo) => {
-                            if (err) {
-                                res.json({'error': err})
-                            } else {
-                                blockArray.push(blocktwo.result.hash)
-                                rpc.getBlock(blocktwo.result.previousblockhash, (err, blockthree) => {
-                                    if (err) {
-                                        res.json({'error': err})
-                                    } else {
-                                        blockArray.push(blockthree.result.hash)
-                                        rpc.getBlock(blockthree.result.previousblockhash, (err, blockfour) => {
-                                            if (err) {
-                                                res.json({'error': err})
-                                            } else {
-                                                blockArray.push(blockfour.result.hash)
-                                                rpc.getBlock(blockfour.result.previousblockhash, (err, blockfive) => {
-                                                    if (err) {
-                                                        res.json({'error': err})
-                                                    } else {
-                                                        blockArray.push(blockfive.result.hash)
-                                                        for (let i = 0; i < blockArray.length; i++) {
-                                                            rpc.getBlock(blockArray[i], (err, finalres) => {
-                                                                if (err) {
-                                                                    res.json({'error': err})
-                                                                } else {
-                                                                    blockInfo.push(finalres.result)
-                                                                    if (blockInfo.length === blockArray.length) {
-                                                                        res.json(blockInfo)
-                                                                    }
-                                                                }
-                                                            })
-                                                        }
-                                                        
-                                                    }
-                                                })
-                                            }
-                                        })
-                                    }
-                                })
-                            }
-                        })
-                    }
-                })
+        let blockInfo   = []
+        let blockArray  = []
+        let step        = 0
+        // First, get the latest block (best block hash)
+        getLatestBlock = () => {
+            batchCall = () => {
+                rpc.getBestBlockHash()
             }
-        })
+            rpc.batch(batchCall, (err, hash) => {
+                if (err) throw err
+                // From the returned hash data, gather up to 10 previous hashes
+                gatherHashes(hash[0].result)
+            })
+        }
+        getLatestBlock()
+
+        /** Gathers all hashes of the 9 previous blocks and adds them to an array
+         * @function
+         * @param hash = A block hash, 
+         * in this case, the hash returned from the getLatestBlock method
+         * */
+        gatherHashes = (hash) => {
+            // Using the hash passed as an argument, call getBlock to get the info
+            // getBlock takes a callback argument that returns 
+            // either an error or info about the block
+            rpc.getBlock(hash, (err, blockHash) => {
+                if (err) throw err
+                // Define the current and next blocks using the resulting hash's info
+                let currentBlock    = blockHash.result.hash
+                let prevBlock       = blockHash.result.previousblockhash 
+                // Push both into the blockArray
+                blockArray.push(currentBlock)
+                blockArray.push(prevBlock)
+                // If the step variable has not reached 10, call getPreviousBlocks
+                if (step < 10) {
+                    // Passing the prevBlock variable as an argument
+                    getPreviousBlocks(prevBlock)
+                } else {
+                // If the step variable is at 10, redefine the blockArray so that it only 
+                // contains unique values
+                    blockArray = _.uniq(blockArray)
+                // Then, loop through each item in the array, 
+                    blockArray.forEach(block => {
+                        // calling getBlockInfo each time
+                        getBlockInfo(block)
+                    })
+                }
+            })
+        }
+
+        /** Uses recursion from the above method to move previous block hashes into the blockArray
+         * @function
+         * @param hash = the previous block hash, returned from the previous gatherHashes invocation
+         * This is a recursive function invoked by the gatherHashes method
+         */
+        getPreviousBlocks = (hash) => {
+            // Increment the step to avoid an infinite loop in the gatherHashes method
+            step++
+            // Call gather hashes with the hash param
+            gatherHashes(hash)
+        }
+
+        /** Returns all information about a block using the hash
+         * @function
+         * @param hash = the block hash, taken from the blockArray
+         * This function is looped over in the gatherHashes method 
+         */
+        getBlockInfo = (hash) => {
+            // Get information from each hash
+            rpc.getBlock(hash, (err, info) => {
+                if (err) throw err
+                // Push information into the blockInfo array
+                blockInfo.push(info.result)
+                // If both arrays have the same length,
+                if (blockArray.length === blockInfo.length) { 
+                    // Return the JSON to the client
+                    renderInfo()
+                }
+            })
+        }
+
+        /** Renders all returned data into JSON for use on the client side
+         * @function
+         */
+        renderInfo = () => {
+            res.json(blockInfo)
+        }
     })
 
     // Get address utxos
