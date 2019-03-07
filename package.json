@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "RESTful api for the diviscan block explorer",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/99darwin/diviscan-api.git"
@@ -21,6 +18,9 @@
     "url": "https://github.com/99darwin/diviscan-api/issues"
   },
   "homepage": "https://github.com/99darwin/diviscan-api#readme",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "body-parser": "^1.18.3",
     "divid-rpc": "^3.0.92",

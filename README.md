@@ -40,6 +40,8 @@ module.exports = {
 
 **NOTE:** You can also add `addressindex=1` to your `divi.conf` file to achieve the same effect. You should always `-reindex` the node on startup regardless.
 
+6. Start the API server with `npm start`
+
 # Endpoints
 
 Node specific endpoints will only return data based on the node where the API is being hosted. 
@@ -67,11 +69,4 @@ Node specific endpoints will only return data based on the node where the API is
 | `/recent`             |                           | active and previous block information             | false             |
 | `/sendfrom/`          | `from`, `to`, `amount`    | transaction id   						            | true              |
 | `/tx/`                | `txid`                    | tx object                         	            | false             |
-
-
-# Developing
-
-If you'd like to contribute to this repository, fork it and create a new branch for your changes. Once complete, make a pull request and, once reviewed, your code may be accepted. Please follow the following guidelines to ensure acceptance.
-
-1. 
 

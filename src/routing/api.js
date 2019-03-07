@@ -117,67 +117,77 @@ module.exports = (app) => {
             platinum = 0,
             diamond = 0
         let rewardArr = []
-        let count = 0
-        rpc.listMasternodes((err, response) => {
-            if (err) {
-                console.log(err)
-            } else {
-                response.result.forEach(tier => {
-                    let layer = tier.tier
-                    switch (layer) {
-                        case 'COPPER':
-                            copper++
-                            break
-                        case 'SILVER':
-                            silver++
-                            break
-                        case 'GOLD':
-                            gold++
-                            break
-                        case 'PLATINUM':
-                            platinum++
-                            break
-                        case 'DIAMOND':
-                            diamond++
-                            break
-                    }
-                    let balanceObj = {
-                        "addresses": [tier.addr]
-                    }
-                    rpc.getAddressBalance(balanceObj, (err, ret) => {
-                        count++  
-                        if (err) {
-                            console.log(err)
-                        } else {
-                            let amountReceived = ret.result.received
-                            let layer = tier.tier
-                            let address = tier.addr
-                            rewardArr.push({
-                                address: address,
-                                amountReceived: amountReceived / 100000000,
-                                layer: layer
-                            })
-                            if (count === response.result.length) {
-                                let uniqRewards = _.uniq(rewardArr)
-                                res.json({
-                                    'num_masternodes': response.result.length,
-                                    'layers': {
-                                        'copper': copper,
-                                        'silver': silver,
-                                        'gold': gold,
-                                        'platinum': platinum,
-                                        'diamond': diamond
-                                    },
-                                    uniqRewards,
-                                    'masternode_list': response.result,
-                                })
-                            } 
-                        }
-                    }) 
-                })
-                
+        let masternodeArray = []
+
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+        getMasternodes = () => {
+            rpc.batch(batchCall, (err, mns) => {
+                if (err) throw err
+                masternodeArray = mns[0].result
+                getTierFigures()
+            })
+        }
+        getMasternodes()
+        getTierFigures = () => {
+            masternodeArray.map(tiers => {
+                let layer = tiers.tier
+                switch (layer) {
+                    case 'COPPER':
+                        copper++
+                        break
+                    case 'SILVER':
+                        silver++
+                        break
+                    case 'GOLD':
+                        gold++
+                        break
+                    case 'PLATINUM':
+                        platinum++
+                        break
+                    case 'DIAMOND':
+                        diamond++
+                        break
+                }
+            })
+            getNodeBalances()
+        }
+        getNodeBalances = () => {
+            batchCall = () => {
+                for (let a in masternodeArray) {
+                    rpc.getAddressBalance({"addresses": [masternodeArray[a].addr]})
+                }
             }
-        })
+            rpc.batch(batchCall, (err, balanceInfo) => {
+                if (err) throw err
+                for (let a in masternodeArray) {
+                    rewardArr.push({
+                        address: masternodeArray[a].addr,
+                        amountReceived: balanceInfo[0].result.received,
+                        balance: balanceInfo[0].result.balance,
+                        layer: masternodeArray[a].tier
+                    })
+                }
+                renderData()
+            })
+        }
+
+        renderData = () => {
+            let uniqRewards = _.uniq(rewardArr)
+            res.json({
+                num_masternodes: masternodeArray.length,
+                'layers': {
+                    'copper': copper,
+                    'silver': silver,
+                    'gold': gold,
+                    'platinum': platinum,
+                    'diamond': diamond
+                },
+                uniqRewards,
+                masternode_list: masternodeArray
+            })
+        }
     })
 
     // Return only rewards by masternodes
@@ -222,68 +232,60 @@ module.exports = (app) => {
 
     // when the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
-        // create addresstxid object from params
-        let reqAddress = req.params.address
-        let addressObj = {
-            "addresses": [reqAddress],
-            "start": 0,
-            "end": 10000000000000000000
-        }
-        let balanceObj = {
-            "addresses": [reqAddress]
-        }
+        let txidArray       = []
         // we will push the tx info into this array so we don't resend the headers, causing a network error
         let transactionInfo = []
-        // set count so we can check if the loop has completed later on 
-        let count = 0
+        // create addresstxid object from params
+        let reqAddress      = req.params.address
+        let addressObj      = {
+            "addresses":    [reqAddress],
+            "start":        0,
+            "end":          10000000000000000000
+        }
+        let balanceObj      = {
+            "addresses":    [reqAddress]
+        }
+        
         // call address txid rpc function
-        rpc.getAddressTxids(addressObj, (err, result) => {
-            if (err) { console.log('txid err:',err) }
-            else {
-                // set up an array to check against the count
-                let txidArray = []
-                // take each result from getaddresstxids 
-                result.result.forEach(txid => {
-                    // push the txids into the txid array from above
-                    txidArray.push(txid)
-                    // call getrawtransaction on each txid
-                    rpc.getRawTransaction(txid, 1, (err, ret) => {
-                        if (err) {
-                            console.log('raw tx err:',err)
-                        } else {
-                            // push each transaction response into the transaction info array
-                            transactionInfo.push(ret)
-                            // check if the count is equal to the length of the txid array minus one (because arrays start at 0)
-                            if (count === txidArray.length - 1) {
-                                // Get address balance 
-                                rpc.getAddressBalance(balanceObj, (err, resp) => {
-                                    if (err) {
-                                        console.log(err)
-                                    } else {
-                                        rpc.getAddressDeltas(balanceObj, (err, r) => {
-                                            if (err) { console.log(err) }
-                                            else {
-                                                // send the object to the client
-                                                res.json({
-                                                    transaction_info: transactionInfo, 
-                                                    balance_info: resp.result,
-                                                    deltas: r.result
-                                                })
-                                                transactionInfo = []
-                                                txidArray = []
-                                            }
-                                        })
-                                        
-                                    }
-                                })
-                            }
-                        }
-                        // increment the count each time
-                        count++
-                    })
-                })
+        getAddressTransactionIds = () => {
+            batchCall = () => {
+                rpc.getAddressTxids(addressObj)
             }
-        })
+            rpc.batch(batchCall, (err, txs) => {
+                if (err) throw err
+                txidArray = txs[0].result
+                getAddressTransactions()
+            })
+        }
+        getAddressTransactionIds()
+        
+        getAddressTransactions = () => {
+            transactionId = ''
+            batchCall = () => {
+                for (let tx in txidArray) {
+                    transactionId = txidArray[tx]
+                    rpc.getRawTransaction(transactionId, 1)
+                }
+            }
+            rpc.batch(batchCall, (err, result) => {
+                if (err) throw err
+                transactionInfo.push(result)
+                getBalance()
+            })
+        }
+
+        getBalance = () => {
+            batchCall = () => {
+                rpc.getAddressBalance(balanceObj)
+            }
+            rpc.batch(batchCall, (err, balance) => {
+                if (err) throw err
+                res.json({
+                    transaction_info: transactionInfo[0], 
+                    balance_info: balance[0]
+                })
+            })
+        }
     })
 
     // Last 10 blocks
