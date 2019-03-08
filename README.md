@@ -94,5 +94,6 @@ If you'd like your app listed here, just reach out to info@diviproject.org with 
 
 This API is currently being used by:
 
-* [Diviscan](https://diviscan.io)
-* 
+* [Diviscan](https://diviscan.io) - [@99darwin](https://github.com/99darwin)
+* [Divi Lottery Timer](https://oriz.bubbleapps.io/) - [@hirscr](https://github.com/Hirscr)
+* [Divi Stats](https://slater.bubbleapps.io/) - [@hirscr](https://github.com/Hirscr)
