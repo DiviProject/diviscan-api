@@ -497,9 +497,6 @@ module.exports = (app) => {
         const options = {
             method: 'GET',
             uri: 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest',
-            // qs: {
-            //     id: 3441
-            // },
             qs: {
                 sort: 'market_cap',
                 start: 400,
