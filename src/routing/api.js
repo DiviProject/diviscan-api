@@ -1,7 +1,9 @@
 const 
     RpcClient   = require('divid-rpc'), 
     config      = require('../config'),
-    _           = require('lodash')
+    _           = require('lodash'),
+    rp          = require('request-promise'),
+    keys        = require('../../keys')
 
 module.exports = (app) => {
     
@@ -488,5 +490,33 @@ module.exports = (app) => {
                 }
             }
         })
+    })
+
+    app.get('/price', (err, res) => {
+        if (err) {console.log(err)}
+        const options = {
+            method: 'GET',
+            uri: 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest',
+            // qs: {
+            //     id: 3441
+            // },
+            qs: {
+                sort: 'market_cap',
+                start: 400,
+                limit: 200
+            },
+            headers: {
+                'X-CMC_PRO_API_KEY': keys.cmc
+            },
+            json: true
+        }
+        rp(options)
+            .then(response => {
+                response.data.forEach(coin => {
+                    if (coin.name === 'Divi') {
+                        res.json(coin.quote.USD.price)
+                    }
+                })
+            }) 
     })
 }
