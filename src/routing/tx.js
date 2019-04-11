@@ -7,17 +7,13 @@ module.exports = (app) => {
     /** TRANSACTIONAL APIS */
 
     // Send from account in wallet
-    app.get('/sendfrom/:from/:to/:amount', (req, res) => {
+    app.get('/send/:to/:amount', (req, res) => {
         let params      = req.params,
-            fromAccount = params.from,
-            toAccount   = params.to,
+            toAddress   = params.to,
             amount      = params.amount
-        rpc.sendFrom(fromAccount, toAccount, amount, (err, response) => {
+        rpc.sendToAddress(toAddress, amount, (err, response) => {
             if (err) {
-                console.log(err)
-                if (err.code === -6) {
-                    res.json({'error': 'Account has insufficient funds'})
-                }
+                res.json(err)
             } else {
                 res.json(response)
             }
