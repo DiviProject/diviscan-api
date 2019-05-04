@@ -194,6 +194,23 @@ module.exports = (app) => {
         }
     })
 
+    app.get('/masternode/:address', (req, res) => {
+        let address = req.params.address
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+
+        rpc.batch(batchCall, (err, mns) => {
+            if (err) throw err
+            for (let i = 0; i < mns[0].result.length; i++) {
+                if (mns[0].result[i].addr === address) {
+                    res.json(mns[0].result[i])
+                }
+            }
+        })
+    })
+
+
     // Return only rewards by masternodes
     app.get('/masternode-rewards', (req, res) => {
         let rewardArr = []
