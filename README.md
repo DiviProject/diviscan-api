@@ -84,7 +84,7 @@ Node specific endpoints will only return data based on the node where the API is
 | `/listreceived`       |                           | wallet tx object                  	            | true              |
 | `/masternodes`	    | 							| number of masternodes, masternode list            | false             |
 | `/newaddress/`        | `account name`            | new address                       	            | true              |
-| `/price`              |                           | current price of $DIVI                            | false             |
+| `/price`              |                           | current price of DIVI in USD and BTC              | false             |
 | `/sendfrom/`          | `from`, `to`, `amount`    | transaction id   						            | true              |
 | `/tx/`                | `txid`                    | tx object                         	            | false             |
 
