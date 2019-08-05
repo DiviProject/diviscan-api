@@ -2,12 +2,14 @@ const
     RpcClient   = require('divid-rpc'), 
     config      = require('../config'),
     _           = require('lodash'),
+    CoinGecko   = require('coingecko-api'),
     rp          = require('request-promise'),
     keys        = require('../../keys')
 
 module.exports = (app) => {
     
-    const rpc = new RpcClient(config.config)
+    const rpc               = new RpcClient(config.config)
+    const CoinGeckoClient   = new CoinGecko()
 
     // Current block count
     app.get('/blockcount', (req, res) => {
@@ -509,28 +511,18 @@ module.exports = (app) => {
         })
     })
 
-    app.get('/price', (err, res) => {
-        if (err) {console.log(err)}
-        const options = {
-            method: 'GET',
-            uri: 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest',
-            qs: {
-                sort: 'market_cap',
-                start: 400,
-                limit: 200
-            },
-            headers: {
-                'X-CMC_PRO_API_KEY': keys.cmc
-            },
-            json: true
+    app.get('/price', async (err, res) => {
+        try {
+            let data    = await CoinGeckoClient.coins.fetch('divi')
+            const usd   = data.data.market_data.current_price.usd
+            const btc   = data.data.market_data.current_price.btc 
+            res.json({
+                usd: usd,
+                btc: `${btc * 100000000} sats`
+            })
+        } catch (err) {
+            console.error(err)
         }
-        rp(options)
-            .then(response => {
-                response.data.forEach(coin => {
-                    if (coin.name === 'Divi') {
-                        res.json(coin.quote.USD.price)
-                    }
-                })
-            }) 
+        
     })
 }

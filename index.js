@@ -26,5 +26,5 @@ require('./src/routing/wallet')(app)
 require('./src/routing/tx')(app)
 
 app.listen(port, () => {
-    console.log(`App listening on port: ${port}`)
+    console.log(`App listening on port: http://localhost:${port}`)
 })
