@@ -205,10 +205,11 @@ module.exports = (app) => {
         rpc.batch(batchCall, (err, mns) => {
             if (err) throw err
             for (let i = 0; i < mns[0].result.length; i++) {
-                console.log(mns[0].result[i].addr);
 		if (mns[0].result[i].addr === address) {
                     return res.json(mns[0].result[i])
-                }
+                } else {
+		    return res.json("Sorry that address does not exist")	
+		}
             }
         })
     })
