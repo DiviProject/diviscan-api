@@ -1,15 +1,21 @@
-const 
-    RpcClient   = require('divid-rpc'), 
-    config      = require('../config'),
-    _           = require('lodash'),
-    CoinGecko   = require('coingecko-api'),
-    rp          = require('request-promise'),
-    keys        = require('../../keys')
+const
+    RpcClient = require('divid-rpc'),
+    config = require('../config'),
+    _ = require('lodash'),
+    CoinGecko = require('coingecko-api'),
+    rp = require('request-promise'),
+    keys = require('../../keys')
 
 module.exports = (app) => {
-    
-    const rpc               = new RpcClient(config.config)
-    const CoinGeckoClient   = new CoinGecko()
+
+    const rpc = new RpcClient(config.config)
+    const CoinGeckoClient = new CoinGecko()
+
+    app.use(function (req, res, next) {
+        let ip = req.headers['cf-connecting-ip']
+        console.log({ time: Date.now(), ip })
+        next()
+    })
 
     // Current block count
     app.get('/blockcount', (req, res) => {
@@ -17,7 +23,7 @@ module.exports = (app) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
+                    res.json({ 'error': 'Invalid transaction' })
                 }
             } else {
                 res.json(response)
@@ -32,7 +38,7 @@ module.exports = (app) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
+                    res.json({ 'error': 'Invalid transaction' })
                 }
             } else {
                 res.json(response)
@@ -46,7 +52,7 @@ module.exports = (app) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
+                    res.json({ 'error': 'Invalid transaction' })
                 }
             } else {
                 res.json(response)
@@ -60,7 +66,7 @@ module.exports = (app) => {
         rpc.getRawTransaction(txid, 1, (err, response) => {
             if (err) {
                 if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
+                    res.json({ 'error': 'Invalid transaction' })
                 }
             } else {
                 res.json(response.result)
@@ -74,7 +80,7 @@ module.exports = (app) => {
             if (err) {
                 console.log(err)
                 if (err.code === -5) {
-                    res.json({'error': 'Invalid transaction'})
+                    res.json({ 'error': 'Invalid transaction' })
                 }
             } else {
                 res.json(response)
@@ -85,14 +91,14 @@ module.exports = (app) => {
     // Get masternode information
     app.get('/masternodes', (req, res) => {
         // Start all tiers at 0
-        let 
-            copper          = 0,
-            silver          = 0,
-            gold            = 0,
-            platinum        = 0,
-            diamond         = 0
+        let
+            copper = 0,
+            silver = 0,
+            gold = 0,
+            platinum = 0,
+            diamond = 0
         // We will have two arrays for storing rewards and masternode info
-        let rewardArr       = []
+        let rewardArr = []
         let masternodeArray = []
 
         batchCall = () => {
@@ -153,20 +159,20 @@ module.exports = (app) => {
                 // For every masternode we will find the address and
                 for (let a in masternodeArray) {
                     // call the getAddressBalance rpc function for each of the addresses
-                    rpc.getAddressBalance({"addresses": [masternodeArray[a].addr]})
+                    rpc.getAddressBalance({ "addresses": [masternodeArray[a].addr] })
                 }
             }
             // Once the batch is created, call the function and use the callback function to return the data
             rpc.batch(batchCall, (err, balanceInfo) => {
-                if (err) throw err
+		if (err) throw err
                 // Once again, for every masternode in the array
-                for (let a in masternodeArray) {
-                    // We will push the object containing relevant data to the rewardArr array
+		for (let a in masternodeArray) {
+		    // We will push the object containing relevant data to the rewardArr array
                     rewardArr.push({
-                        address         : masternodeArray[a].addr,
-                        amountReceived  : balanceInfo[0].result.received,
-                        balance         : balanceInfo[0].result.balance,
-                        layer           : masternodeArray[a].tier
+                        address: masternodeArray[a].addr,
+                        amountReceived: balanceInfo[a].result.received,
+                        balance: balanceInfo[a].result.balance,
+                        layer: masternodeArray[a].tier
                     })
                 }
                 // Once all the data has been pushed to the array, we can render the JSON to the client
@@ -184,14 +190,14 @@ module.exports = (app) => {
             res.json({
                 num_masternodes: masternodeArray.length,
                 'layers': {
-                    'copper'    : copper,
-                    'silver'    : silver,
-                    'gold'      : gold,
-                    'platinum'  : platinum,
-                    'diamond'   : diamond
+                    'copper': copper,
+                    'silver': silver,
+                    'gold': gold,
+                    'platinum': platinum,
+                    'diamond': diamond
                 },
                 uniqRewards,
-                masternode_list : masternodeArray
+                masternode_list: masternodeArray
             })
         }
     })
@@ -204,13 +210,19 @@ module.exports = (app) => {
 
         rpc.batch(batchCall, (err, mns) => {
             if (err) throw err
-            for (let i = 0; i < mns[0].result.length; i++) {
-		if (mns[0].result[i].addr === address) {
-                    return res.json(mns[0].result[i])
-                } else {
-		    return res.json("Sorry that address does not exist")	
-		}
+
+            const masternodes = mns[0].result
+
+            // Find specific masternode
+            const masternode = masternodes.find(masternode => masternode.addr === address)
+
+            // Not found?
+            if (!masternode) {
+                return res.json("Sorry that address does not exist")
             }
+
+            // Send reply
+            return res.json(masternode)
         })
     })
 
@@ -228,7 +240,7 @@ module.exports = (app) => {
                         "addresses": [mn.addr]
                     }
                     rpc.getAddressBalance(balanceObj, (err, ret) => {
-                        count++  
+                        count++
                         if (err) {
                             console.log(err)
                         } else {
@@ -246,11 +258,11 @@ module.exports = (app) => {
                                     uniqRewards
                                 })
                                 rewardArr = []
-                            } 
+                            }
                         }
-                    })                                     
+                    })
                 })
-                
+
             }
         })
     })
@@ -258,19 +270,19 @@ module.exports = (app) => {
     // When the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
         // The txidArray will be used to store all of the transaction IDs
-        let txidArray       = []
+        let txidArray = []
         // We will push the tx info into this array so we don't resend the headers, causing a network error
         let transactionInfo = []
-        let reqAddress      = req.params.address
-        let addressObj      = {
-            "addresses"     : [reqAddress],
-            "start"         : 0,
-            "end"           : 10000000000000000000
+        let reqAddress = req.params.address
+        let addressObj = {
+            "addresses": [reqAddress],
+            "start": 0,
+            "end": 10000000000000000000
         }
-        let balanceObj      = {
-            "addresses"     : [reqAddress]
+        let balanceObj = {
+            "addresses": [reqAddress]
         }
-        
+
         /** Gets all the transaction IDs from a specified address 
          * @function
          */
@@ -289,7 +301,7 @@ module.exports = (app) => {
             })
         }
         getAddressTransactionIds()
-        
+
         /** Get's transaction info from raw transaction data
          * @function
          */
@@ -315,7 +327,7 @@ module.exports = (app) => {
                 getBalance()
             })
         }
-        
+
         /** Get's the balance of the requested address
          * @function
          */
@@ -329,8 +341,8 @@ module.exports = (app) => {
                 if (err) throw err
                 // We can simply return all of the collective data
                 res.json({
-                    transaction_info    : transactionInfo[0], 
-                    balance_info        : balance[0]
+                    transaction_info: transactionInfo[0],
+                    balance_info: balance[0]
                 })
             })
         }
@@ -338,9 +350,9 @@ module.exports = (app) => {
 
     // Get the last 10 blocks minted
     app.get('/latest-blocks', (req, res) => {
-        let blockInfo   = []
-        let blockArray  = []
-        let step        = 0
+        let blockInfo = []
+        let blockArray = []
+        let step = 0
         // First, get the latest block (best block hash)
         getLatestBlock = () => {
             batchCall = () => {
@@ -366,8 +378,8 @@ module.exports = (app) => {
             rpc.getBlock(hash, (err, blockHash) => {
                 if (err) throw err
                 // Define the current and next blocks using the resulting hash's info
-                let currentBlock    = blockHash.result.hash
-                let prevBlock       = blockHash.result.previousblockhash 
+                let currentBlock = blockHash.result.hash
+                let prevBlock = blockHash.result.previousblockhash
                 // Push both into the blockArray
                 blockArray.push(currentBlock)
                 blockArray.push(prevBlock)
@@ -376,10 +388,10 @@ module.exports = (app) => {
                     // Passing the prevBlock variable as an argument
                     getPreviousBlocks(prevBlock)
                 } else {
-                // If the step variable is at 10, redefine the blockArray so that it only 
-                // contains unique values
+                    // If the step variable is at 10, redefine the blockArray so that it only 
+                    // contains unique values
                     blockArray = _.uniq(blockArray)
-                // Then, loop through each item in the array, 
+                    // Then, loop through each item in the array, 
                     blockArray.forEach(block => {
                         // calling getBlockInfo each time
                         getBlockInfo(block)
@@ -412,7 +424,7 @@ module.exports = (app) => {
                 // Push information into the blockInfo array
                 blockInfo.push(info.result)
                 // If both arrays have the same length,
-                if (blockArray.length === blockInfo.length) { 
+                if (blockArray.length === blockInfo.length) {
                     // Return the JSON to the client
                     renderInfo()
                 }
@@ -432,7 +444,7 @@ module.exports = (app) => {
         let addr = req.params.address
         rpc.getAddressUtxos(addr, (err, result) => {
             if (err) {
-                res.json({'error': err})
+                res.json({ 'error': err })
             } else {
                 res.json(result)
             }
@@ -444,11 +456,11 @@ module.exports = (app) => {
         let blockHeight = req.params.index
         rpc.getBlockHash(blockHeight, (err, response) => {
             if (err) {
-                res.json({'error': err})
+                res.json({ 'error': err })
             } else {
                 rpc.getBlock(response.result, (err, ret) => {
                     if (err) {
-                        res.json({'error': err})
+                        res.json({ 'error': err })
                     } else {
                         res.json(ret.result)
                     }
@@ -476,7 +488,7 @@ module.exports = (app) => {
         let account = req.params.account ? req.params.account : ''
         rpc.listTransactions(account, 10000000, (err, response) => {
             if (err) {
-                console.log('list transactions error:',err)
+                console.log('list transactions error:', err)
             } else {
                 let list = response.result
                 let addresses = []
@@ -488,13 +500,13 @@ module.exports = (app) => {
                 if (count == addresses.length) {
                     let uniqAddresses = _.uniq(addresses)
                     uniqAddresses.forEach(uniqAddress => {
-                        if (uniqAddress != undefined ) {
+                        if (uniqAddress != undefined) {
                             let newBalanceObj = {
                                 "addresses": [uniqAddress]
                             }
                             rpc.getAddressBalance(newBalanceObj, (err, resp) => {
                                 if (err) {
-                                    console.log('get address balance error:',err)
+                                    console.log('get address balance error:', err)
                                 } else {
                                     balanceArray.push({
                                         'address': uniqAddress,
@@ -515,9 +527,9 @@ module.exports = (app) => {
 
     app.get('/price', async (err, res) => {
         try {
-            let data    = await CoinGeckoClient.coins.fetch('divi')
-            const usd   = data.data.market_data.current_price.usd
-            const btc   = data.data.market_data.current_price.btc 
+            let data = await CoinGeckoClient.coins.fetch('divi')
+            const usd = data.data.market_data.current_price.usd
+            const btc = data.data.market_data.current_price.btc
             res.json({
                 usd: usd,
                 btc: `${btc * 100000000} sats`
@@ -525,6 +537,6 @@ module.exports = (app) => {
         } catch (err) {
             console.error(err)
         }
-        
+
     })
 }
