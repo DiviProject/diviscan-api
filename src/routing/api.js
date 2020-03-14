@@ -267,6 +267,23 @@ module.exports = (app) => {
         })
     })
 
+    app.get('/address-deltas/:address', (req, res) => {
+        const reqAddress = req.params.address
+        const addressObj = {
+            "addresses": [reqAddress]
+        }
+
+        batchCall = () => {
+            rpc.getAddressDeltas(addressObj)
+        }
+
+        rpc.batch(batchCall, (err, txs) => {
+            if (err) throw err
+            res.json(txs)
+        })
+
+    })
+
     // When the client calls the url get all information for the address in question
     app.get('/address/:address', (req, res) => {
         // The txidArray will be used to store all of the transaction IDs
