@@ -17,6 +17,11 @@ module.exports = (app) => {
         next()
     })
 
+    // Ping server
+    app.get('/ping', (req, res) => {
+        res.json('pong')
+    })
+
     // Current block count
     app.get('/blockcount', (req, res) => {
         rpc.getBlockCount((err, response) => {
