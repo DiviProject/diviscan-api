@@ -148,6 +148,39 @@ module.exports = (app) => {
         })
     })
 
+    app.get('/mncounts', (req, res) => {
+        getTierCounts = (masternodes) => {
+            var tierCounts = {
+                copper: 0,
+                silver: 0,
+                gold: 0,
+                diamond: 0,
+                platinum: 0,
+            };
+            var rewards = [];
+            for(var m = 0; m < masternodes.length; m++){
+                let node = masternodes[m];
+                if(node.tier){
+                    let tier = node.tier.toLowerCase();
+                    if(tierCounts[tier] || tierCounts[tier] === 0){
+                        tierCounts[tier] ++;
+                    }
+                }
+            }
+            res.json({
+                "num_masternodes": masternodes.length,
+                "layers": tierCounts
+            })
+        }
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+        rpc.batch(batchCall, (err, mns) => {
+            if (err) throw err
+            getTierCounts(mns[0].result)
+        })
+    })
+    
     app.get('/masternode/:address', (req, res) => {
         let address = req.params.address
         batchCall = () => {
