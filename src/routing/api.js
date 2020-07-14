@@ -105,7 +105,6 @@ module.exports = (app) => {
         };
         // We will have two arrays for storing rewards and masternode info
         let rewardArr = []
-        let masternodeArray = []
 
         batchCall = () => {
             rpc.listMasternodes()
@@ -118,9 +117,8 @@ module.exports = (app) => {
             rpc.batch(batchCall, (err, mns) => {
                 if (err) throw err
                 // Set masternodeArray equal to the result at the 0th index
-                masternodeArray = mns[0].result
                 // Call getTierFigures to determine how many nodes of each type exist in the network
-                getTierFigures()
+                getTierFigures(mns[0].result)
             })
         }
         getMasternodes()
@@ -128,7 +126,7 @@ module.exports = (app) => {
         /** Get's the number of nodes of each type that exist in the network
          * @function
          */
-        getTierFigures = () => {
+        getTierFigures = (masternodeArray) => {
             // Loop over the masternodeArray, mapping each tier
             masternodeArray.map(node => {
                 let tier = node.tier
@@ -138,13 +136,13 @@ module.exports = (app) => {
                 }
             })
             // Once all the tiers have been numbered, call getNodeBalances to find further info about each node
-            getNodeBalances()
+            getNodeBalances(masternodeArray)
         }
 
         /** Get's balances for each node individually based on their address 
          * @function
          */
-        getNodeBalances = () => {
+        getNodeBalances = (masternodeArray) => {
             batchCall = () => {
                 // For every masternode we will find the address and
                 for (let a in masternodeArray) {
@@ -166,14 +164,14 @@ module.exports = (app) => {
                     })
                 }
                 // Once all the data has been pushed to the array, we can render the JSON to the client
-                renderData()
+                renderData(masternodeArray)
             })
         }
 
         /** Renders the collective data to the client in JSON format
          * @function
          */
-        renderData = () => {
+        renderData = (masternodeArray) => {
             // First weed out any duplicates and redefine the array of rewards as uniqRewards
             let uniqRewards = _.uniq(rewardArr)
             // Then return the JSON to the client
