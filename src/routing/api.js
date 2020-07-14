@@ -96,12 +96,13 @@ module.exports = (app) => {
     // Get masternode information
     app.get('/masternodes', (req, res) => {
         // Start all tiers at 0
-        let
-            copper = 0,
-            silver = 0,
-            gold = 0,
-            platinum = 0,
-            diamond = 0
+        let masternodeTierCounts = {
+            COPPER: 0,
+            SILVER: 0,
+            GOLD: 0,
+            PLATINUM: 0,
+            DIAMOND: 0
+        };
         // We will have two arrays for storing rewards and masternode info
         let rewardArr = []
         let masternodeArray = []
@@ -129,27 +130,11 @@ module.exports = (app) => {
          */
         getTierFigures = () => {
             // Loop over the masternodeArray, mapping each tier
-            masternodeArray.map(tiers => {
-                // to a variable layer
-                let layer = tiers.tier
-                // Using a switch/case statement, we can easily iterate and set each node layer's equivalent value
+            masternodeArray.map(node => {
+                let tier = node.tier
                 // If the layer matches, increment the number of nodes of that type by 1
-                switch (layer) {
-                    case 'COPPER':
-                        copper++
-                        break
-                    case 'SILVER':
-                        silver++
-                        break
-                    case 'GOLD':
-                        gold++
-                        break
-                    case 'PLATINUM':
-                        platinum++
-                        break
-                    case 'DIAMOND':
-                        diamond++
-                        break
+                if(masternodeTierCounts[tier]){
+                    masternodeTierCounts[tier] ++;
                 }
             })
             // Once all the tiers have been numbered, call getNodeBalances to find further info about each node
@@ -195,11 +180,11 @@ module.exports = (app) => {
             res.json({
                 num_masternodes: masternodeArray.length,
                 'layers': {
-                    'copper': copper,
-                    'silver': silver,
-                    'gold': gold,
-                    'platinum': platinum,
-                    'diamond': diamond
+                    'copper': masternodeTierCounts.COPPER,
+                    'silver': masternodeTierCounts.SILVER,
+                    'gold': masternodeTierCounts.GOLD,
+                    'platinum': masternodeTierCounts.PLATINUM,
+                    'diamond': masternodeTierCounts.DIAMOND
                 },
                 uniqRewards,
                 masternode_list: masternodeArray
