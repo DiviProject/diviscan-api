@@ -169,10 +169,10 @@ module.exports = (app) => {
             }
             // Once the batch is created, call the function and use the callback function to return the data
             rpc.batch(batchCall, (err, balanceInfo) => {
-		if (err) throw err
-                // Once again, for every masternode in the array
-		for (let a in masternodeArray) {
-		    // We will push the object containing relevant data to the rewardArr array
+                if (err) throw err
+                        // Once again, for every masternode in the array
+                for (let a in masternodeArray) {
+                    // We will push the object containing relevant data to the rewardArr array
                     rewardArr.push({
                         address: masternodeArray[a].addr,
                         amountReceived: balanceInfo[a].result.received,
