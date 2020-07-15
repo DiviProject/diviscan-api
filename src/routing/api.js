@@ -79,7 +79,6 @@ module.exports = (app) => {
         })
     })
 
-    // Get total number of connected peers
     app.get('/connectioncount', (req, res) => {
         rpc.getConnectionCount((err, response) => {
             if (err) {
@@ -93,118 +92,117 @@ module.exports = (app) => {
         })
     })
 
-    // Get masternode information
     app.get('/masternodes', (req, res) => {
-        // Start all tiers at 0
-        let
-            copper = 0,
-            silver = 0,
-            gold = 0,
-            platinum = 0,
-            diamond = 0
-        // We will have two arrays for storing rewards and masternode info
-        let rewardArr = []
-        let masternodeArray = []
-
         batchCall = () => {
             rpc.listMasternodes()
         }
-        /** Gets the initial data about masternodes using a batchCall to optimize request speed
-         * @function
-         */
-        getMasternodes = () => {
-            // The batch function takes a callback function  that returns an error and masternode info
-            rpc.batch(batchCall, (err, mns) => {
-                if (err) throw err
-                // Set masternodeArray equal to the result at the 0th index
-                masternodeArray = mns[0].result
-                // Call getTierFigures to determine how many nodes of each type exist in the network
-                getTierFigures()
-            })
-        }
-        getMasternodes()
 
-        /** Get's the number of nodes of each type that exist in the network
-         * @function
-         */
-        getTierFigures = () => {
-            // Loop over the masternodeArray, mapping each tier
-            masternodeArray.map(tiers => {
-                // to a variable layer
-                let layer = tiers.tier
-                // Using a switch/case statement, we can easily iterate and set each node layer's equivalent value
-                // If the layer matches, increment the number of nodes of that type by 1
-                switch (layer) {
-                    case 'COPPER':
-                        copper++
-                        break
-                    case 'SILVER':
-                        silver++
-                        break
-                    case 'GOLD':
-                        gold++
-                        break
-                    case 'PLATINUM':
-                        platinum++
-                        break
-                    case 'DIAMOND':
-                        diamond++
-                        break
-                }
-            })
-            // Once all the tiers have been numbered, call getNodeBalances to find further info about each node
-            getNodeBalances()
-        }
+        getAllFigures = (masternodes) => {
+            var tierCounts = {
+                copper: 0,
+                silver: 0,
+                gold: 0,
+                diamond: 0,
+                platinum: 0
+            };
+            var rewards = [];
+            for(var m = 0; m < masternodes.length; m++){
+                let node = masternodes[m];
+                
+                if(node.tier){
+                    let tier = node.tier.toLowerCase();
 
-        /** Get's balances for each node individually based on their address 
-         * @function
-         */
-        getNodeBalances = () => {
-            batchCall = () => {
-                // For every masternode we will find the address and
-                for (let a in masternodeArray) {
-                    // call the getAddressBalance rpc function for each of the addresses
-                    rpc.getAddressBalance({ "addresses": [masternodeArray[a].addr] })
+                    if(tierCounts[tier] || tierCounts[tier] === 0){
+
+                        tierCounts[tier] ++;
+
+                    }
                 }
-            }
-            // Once the batch is created, call the function and use the callback function to return the data
-            rpc.batch(batchCall, (err, balanceInfo) => {
-		if (err) throw err
-                // Once again, for every masternode in the array
-		for (let a in masternodeArray) {
-		    // We will push the object containing relevant data to the rewardArr array
-                    rewardArr.push({
-                        address: masternodeArray[a].addr,
-                        amountReceived: balanceInfo[a].result.received,
-                        balance: balanceInfo[a].result.balance,
-                        layer: masternodeArray[a].tier
+
+                let balanceInfo = rpc.getAddressBalance({ "addresses": [node.addr] });
+                if(balanceInfo && balanceInfo.result){
+                    rewards[m] = ({
+                        address: node.addr,
+                        amountReceived: balanceInfo.result.received,
+                        balance: balanceInfo.result.balance,
+                        layer: node.tier
                     })
                 }
-                // Once all the data has been pushed to the array, we can render the JSON to the client
-                renderData()
-            })
+            }
+            renderData(masternodes, tierCounts, rewards);
         }
-
-        /** Renders the collective data to the client in JSON format
-         * @function
-         */
-        renderData = () => {
-            // First weed out any duplicates and redefine the array of rewards as uniqRewards
-            let uniqRewards = _.uniq(rewardArr)
-            // Then return the JSON to the client
+        
+        renderData = (masternodeArray, masternodeTierCounts, rewardArr) => {
             res.json({
                 num_masternodes: masternodeArray.length,
-                'layers': {
-                    'copper': copper,
-                    'silver': silver,
-                    'gold': gold,
-                    'platinum': platinum,
-                    'diamond': diamond
-                },
+                'layers': masternodeTierCounts,
                 uniqRewards,
                 masternode_list: masternodeArray
             })
         }
+        
+        rpc.batch(batchCall, (err, mns) => {
+            if (err) throw err
+
+            getAllFigures(mns[0].result)
+        })
+    })
+
+    app.get('/mncounts', (req, res) => {
+        getTierCounts = (masternodes) => {
+            var tierCounts = {
+                copper: 0,
+                silver: 0,
+                gold: 0,
+                diamond: 0,
+                platinum: 0,
+            };
+            var rewards = [];
+            for(var m = 0; m < masternodes.length; m++){
+                let node = masternodes[m];
+                if(node.tier){
+                    let tier = node.tier.toLowerCase();
+                    if(tierCounts[tier] || tierCounts[tier] === 0){
+                        tierCounts[tier] ++;
+                    }
+                }
+            }
+            res.json({
+                "num_masternodes": masternodes.length,
+                "layers": tierCounts
+            })
+        }
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+        rpc.batch(batchCall, (err, mns) => {
+            if (err) throw err
+            getTierCounts(mns[0].result)
+        })
+    })
+    
+    app.get('/masternode/:address', (req, res) => {
+        let address = req.params.address
+        batchCall = () => {
+            rpc.listMasternodes()
+        }
+
+        rpc.batch(batchCall, (err, mns) => {
+            if (err) throw err
+
+            const masternodes = mns[0].result
+
+            // Find specific masternode
+            const masternode = masternodes.find(masternode => masternode.addr === address)
+
+            // Not found?
+            if (!masternode) {
+                return res.json("Sorry that address does not exist")
+            }
+
+            // Send reply
+            return res.json(masternode)
+        })
     })
 
     app.get('/masternode/:address', (req, res) => {
@@ -230,7 +228,6 @@ module.exports = (app) => {
             return res.json(masternode)
         })
     })
-
 
     // Return only rewards by masternodes
     app.get('/masternode-rewards', (req, res) => {
